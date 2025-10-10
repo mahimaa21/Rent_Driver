@@ -68,3 +68,52 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return Response({"message": "Logout successful"}, status=200)
+
+
+    @api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    """Return current user's info (role, username)."""
+    return Response({"username": request.user.username, "role": request.user.role})
+
+
+# ===============================================================
+# ================ DRIVER PROFILE ===============================
+# ===============================================================
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_driver_profile(request):
+    if request.user.role != "driver":
+        return Response({"error": "Only drivers can create a profile"}, status=403)
+
+    serializer = DriverProfileSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+# ===============================================================
+# ================ RIDE REQUEST ================================
+# ===============================================================
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_ride_request(request):
+    if request.user.role != "customer":
+        return Response({"error": "Only customers can create ride requests"}, status=403)
+
+    serializer = RideRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(customer=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_my_ride_requests(request):
+    rides = RideRequest.objects.filter(customer=request.user)
+    serializer = RideRequestSerializer(rides, many=True)
+    return Response(serializer.data)
