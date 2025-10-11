@@ -186,3 +186,72 @@ def cancel_ride_request(request, ride_request_id):
     ride.status = "cancelled"
     ride.save()
     return Response({"message": "Ride cancelled successfully"}, status=200)
+
+
+
+
+# ===============================================================
+# ================ AVAILABLE RIDES ==============================
+# ===============================================================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_available_rides(request):
+    if request.user.role != "driver":
+        return Response({"error": "Only drivers can view rides"}, status=403)
+    rides = RideRequest.objects.filter(status="pending")
+    serializer = RideRequestSerializer(rides, many=True)
+    return Response(serializer.data)
+
+
+# ===============================================================
+# ================ DRIVER REVIEW ================================
+# ===============================================================
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_review(request, booking_id):
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({"error": "Booking not found"}, status=404)
+
+    # Only customers can review their completed ride
+    if request.user.role != "customer":
+        return Response({"error": "Only customers can submit reviews"}, status=403)
+
+    if booking.ride_request.customer != request.user:  # ✅ fixed line
+        return Response({"error": "You are not the owner of this booking"}, status=403)
+
+    if booking.status != "completed":
+        return Response({"error": "You can only review completed rides"}, status=400)
+
+    if DriverReview.objects.filter(booking=booking).exists():
+        return Response({"error": "You already reviewed this booking"}, status=400)
+
+    if not booking.driver:
+        return Response({"error": "No driver assigned to this booking"}, status=400)
+
+    try:
+        rating = int(request.data.get("rating", 0))
+    except (TypeError, ValueError):
+        return Response({"error": "Invalid rating value"}, status=400)
+
+    feedback = (request.data.get("feedback") or "").strip()
+
+    DriverReview.objects.create(
+        booking=booking,
+        driver=booking.driver,
+        customer=request.user,
+        rating=rating,
+        feedback=feedback,
+    )
+
+    return Response({"message": "Review submitted successfully!"}, status=201)
+
+@api_view(["GET"])
+def list_driver_reviews(request, driver_id):
+    reviews = DriverReview.objects.filter(driver_id=driver_id).order_by("-created_at")
+    serializer = DriverReviewSerializer(reviews, many=True)
+    return Response(serializer.data)
+asm-fuwa-chj
