@@ -169,5 +169,20 @@ def update_booking_status(request, booking_id):
     booking.ride_request.save()
 
     return Response({"message": f"Booking marked as {new_status}"}, status=200)
-# mahiaaa
-#jjjjjjjjj
+ 
+
+ # ===============================================================
+# ================ CANCEL RIDE =================================
+# ===============================================================
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_ride_request(request, ride_request_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_request_id, customer=request.user, status="pending")
+    except RideRequest.DoesNotExist:
+        return Response({"error": "Ride not found or cannot be cancelled"}, status=404)
+
+    ride.status = "cancelled"
+    ride.save()
+    return Response({"message": "Ride cancelled successfully"}, status=200)
