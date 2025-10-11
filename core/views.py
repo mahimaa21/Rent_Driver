@@ -169,3 +169,5 @@ def update_booking_status(request, booking_id):
     booking.ride_request.save()
 
     return Response({"message": f"Booking marked as {new_status}"}, status=200)
+# mahiaaa
+#jjjjjjjjj
