@@ -23,3 +23,15 @@ urlpatterns = [
     path("api/booking/create/<int:ride_request_id>/", views.create_booking, name="create_booking"),
     path("api/bookings/my/", views.list_my_bookings, name="list_my_bookings"),
     path("api/booking/<int:booking_id>/status/", views.update_booking_status, name="update_booking_status"),
+
+
+
+# ---------- DRIVER: AVAILABLE RIDES ----------
+    path("api/rides/available/", views.list_available_rides, name="list_available_rides"),
+
+    # ---------- REVIEWS ----------
+    path("api/reviews/create/<int:booking_id>/", views.create_review, name="create_review"),
+    path("api/reviews/driver/<int:driver_id>/", views.list_driver_reviews, name="list_driver_reviews"),
+
+    # ---------- LEADERBOARD ----------
+    path("api/leaderboard/drivers/", views.driver_leaderboard, name="driver_leaderboard"),
