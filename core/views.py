@@ -117,3 +117,55 @@ def list_my_ride_requests(request):
     rides = RideRequest.objects.filter(customer=request.user)
     serializer = RideRequestSerializer(rides, many=True)
     return Response(serializer.data)
+    # ===============================================================
+# ================ BOOKING ======================================
+# ===============================================================
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_booking(request, ride_request_id):
+    if request.user.role != "driver":
+        return Response({"error": "Only drivers can accept bookings"}, status=403)
+
+    try:
+        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
+    except RideRequest.DoesNotExist:
+        return Response({"error": "Ride not found or already matched"}, status=404)
+
+    ride.status = "accepted"
+    ride.save()
+
+    booking = Booking.objects.create(ride_request=ride, driver=request.user)
+    serializer = BookingSerializer(booking)
+    return Response(serializer.data, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_my_bookings(request):
+    if request.user.role == "driver":
+        bookings = Booking.objects.filter(driver=request.user)
+    else:
+        bookings = Booking.objects.filter(ride_request__customer=request.user)
+    serializer = BookingSerializer(bookings, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_booking_status(request, booking_id):
+    try:
+        booking = Booking.objects.get(id=booking_id, driver=request.user)
+    except Booking.DoesNotExist:
+        return Response({"error": "Booking not found or unauthorized"}, status=404)
+
+    new_status = request.data.get("status")
+    if new_status not in ["completed", "cancelled"]:
+        return Response({"error": "Invalid status"}, status=400)
+
+    booking.status = new_status
+    booking.save()
+    booking.ride_request.status = "completed" if new_status == "completed" else "cancelled"
+    booking.ride_request.save()
+
+    return Response({"message": f"Booking marked as {new_status}"}, status=200)
