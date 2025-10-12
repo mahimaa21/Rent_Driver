@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Driver Profile Setup - Rent a Driver{% endblock %}
+
+{% block content %}
+<section class="form-section">
+  <div class="form-container">
+    <h2>Driver Profile Setup</h2>
+    <p>Please complete your profile before continuing.</p>
+
+
+    <form id="driverProfileForm" enctype="multipart/form-data">
+      <label>License Number</label>
+      <input type="text" id="license" placeholder="Enter license number" required />
+
+      <label>Vehicle Details</label>
+      <input type="text" id="vehicle" placeholder="Enter vehicle details" required />
+
+      <label>Current Latitude (optional)</label>
+      <input type="number" id="lat" step="any" placeholder="e.g. 23.8103" />
+
+      <label>Current Longitude (optional)</label>
+      <input type="number" id="lng" step="any" placeholder="e.g. 90.4125" />
+
+      <label>Profile Image (optional)</label>
+      <input type="file" id="profile_image" accept="image/*" />
+
+      <button type="submit" class="btn btn-primary">Save Profile</button>
+    </form>
+
+    <p id="profileMsg" class="msg"></p>
+  </div>
+</section>
+{% endblock %}
