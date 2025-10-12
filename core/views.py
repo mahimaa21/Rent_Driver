@@ -32,7 +32,7 @@ def calculate_distance(lat1, lng1, lat2, lng2):
     lat1, lng1, lat2, lng2 = map(math.radians, [lat1, lng1, lat2, lng2])
     dlat, dlng = lat2 - lat1, lng2 - lng1
     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
-    return 6371 * 2 * math.asin(math.sqrt(a))  # km
+    return 6371 * 2 * math.asin(math.sqrt(a))  
 
 
 # ================ AUTH =========================================
@@ -197,7 +197,7 @@ def create_review(request, booking_id):
     if request.user.role != "customer":
         return Response({"error": "Only customers can submit reviews"}, status=403)
 
-    if booking.ride_request.customer != request.user:  # ✅ fixed line
+    if booking.ride_request.customer != request.user:  
         return Response({"error": "You are not the owner of this booking"}, status=403)
 
     if booking.status != "completed":
@@ -278,10 +278,10 @@ def driver_leaderboard(request):
             Account.objects.filter(role="driver")
             .annotate(
                 total_completed=Count(
-                    "bookings",                                # <-- correct related_name
-                    filter=Q(bookings__status="completed")     # <-- filter on completed
+                    "bookings",                               
+                    filter=Q(bookings__status="completed")     
                 ),
-                avg_rating=Avg("driver_reviews__rating")        # <-- matches DriverReview.related_name
+                avg_rating=Avg("driver_reviews__rating")        
             )
             .order_by("-total_completed", "-avg_rating")[:10]
         )
