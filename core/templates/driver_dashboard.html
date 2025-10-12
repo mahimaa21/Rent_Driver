@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Driver Dashboard - Rent a Driver{% endblock %}
+{% block content %}
+<section class="dashboard-page">
+  <div class="dashboard-container">
+
+    <!-- LEFT COLUMN -->
+    <div class="dashboard-left">
+      <h2>Welcome, Driver 👨‍✈️</h2>
+      <div class="info-card">
+        <p><strong>Total Rides Completed:</strong> <span id="totalRides">0</span></p>
+        <p><strong>Ongoing Rides:</strong> <span id="ongoingRides">0</span></p>
+      </div>
+
+      <!-- 💰 Earnings Summary Card -->
+      <div class="card">
+        <h3>💰 Earnings Summary</h3>
+        <p>Completed Rides: <strong id="earningsRides">0</strong></p>
+        <p>Total Earnings: <strong id="earningsAmount">$0</strong></p>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="dashboard-right">
+      <!-- NEW: Nearby Rides Card -->
+      <div class="card">
+        <h3>🧍 Nearby Ride Requests</h3>
+        <p class="card-subtitle">See customers within 5 km radius</p>
+        <ul id="nearbyRidesList" class="list">
+          <li>Detecting location...</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Available Rides</h3>
+        <ul id="availableRides" class="list"></ul>
+      </div>
+
+      <div class="card">
+        <h3>My Bookings</h3>
+        <ul id="myBookings" class="list"></ul>
+      </div>
+
+      <div class="card">
+        <h3>Your Reviews & Ratings</h3>
+        <p>Average rating: <strong id="avgRating">–</strong></p>
+        <ul id="myReviews" class="list"></ul>
+        <p id="reviewsMsg" class="msg"></p>
+      </div>
+
+      <p id="driverMsg" class="msg"></p>
+    </div>
+  </div>
+</section>
+{% endblock %}
