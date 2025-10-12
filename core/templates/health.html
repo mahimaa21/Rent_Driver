@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}System Health - Rent a Driver{% endblock %}
+
+{% block content %}
+<section class="container text-center py-10">
+  <h2 class="text-2xl font-bold mb-4">🩺 System Health Dashboard</h2>
+  <p class="text-gray-600 mb-6">Real-time backend health and configuration status</p>
+
+  <div id="healthStatus" class="p-6 bg-white rounded-2xl shadow-lg inline-block text-left">
+    <p><strong>Status:</strong> <span id="status">Loading...</span></p>
+    <p><strong>Database:</strong> <span id="database">Loading...</span></p>
+    <p><strong>Server Time:</strong> <span id="time">Loading...</span></p>
+  </div>
+
+  <div id="serverInfo" class="p-6 bg-white rounded-2xl shadow-lg mt-6 inline-block text-left">
+    <p><strong>App Name:</strong> <span id="app_name">Loading...</span></p>
+    <p><strong>Version:</strong> <span id="version">Loading...</span></p>
+    <p><strong>Debug Mode:</strong> <span id="debug">Loading...</span></p>
+    <p><strong>Timezone:</strong> <span id="timezone">Loading...</span></p>
+    <p><strong>Installed Apps:</strong></p>
+    <ul id="apps" class="list-disc ml-6 text-gray-700"></ul>
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const [healthRes, infoRes] = await Promise.all([
+      fetch("/utilities/api/health/"),
+      fetch("/utilities/api/info/")
+    ]);
+
+    const health = await healthRes.json();
+    const info = await infoRes.json();
+
+    // Health info
+    document.getElementById("status").textContent = health.status || "unknown";
+    document.getElementById("database").textContent = health.database || "unknown";
+    document.getElementById("time").textContent = new Date(health.time).toLocaleString();
+
+    // Server info
+    document.getElementById("app_name").textContent = info.app_name;
+    document.getElementById("version").textContent = info.version;
+    document.getElementById("debug").textContent = info.debug ? "ON" : "OFF";
+    document.getElementById("timezone").textContent = info.timezone;
+
+    const appsList = document.getElementById("apps");
+    info.installed_apps.forEach(app => {
+      const li = document.createElement("li");
+      li.textContent = app;
+      appsList.appendChild(li);
+    });
+  } catch (err) {
+    document.body.innerHTML = "<p style='color:red;text-align:center;'>❌ Failed to load health info.</p>";
+  }
+});
+</script>
+{% endblock %}
