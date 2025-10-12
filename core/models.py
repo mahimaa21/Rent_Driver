@@ -36,7 +36,7 @@ class RideRequest(models.Model):
     pickup_lat = models.FloatField(null=True, blank=True)
     pickup_lng = models.FloatField(null=True, blank=True)
     status = models.CharField(max_length=20, default="pending")
-    created_at = models.DateTimeField(auto_now_add=True)  # ✅ add this
+    created_at = models.DateTimeField(auto_now_add=True)  
     def __str__(self):
         return f"Ride by {self.customer.username}"
 
@@ -61,7 +61,7 @@ class DriverReview(models.Model):
     booking = models.OneToOneField("Booking", on_delete=models.CASCADE, related_name="review")
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="driver_reviews")
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_reviews")
-    rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])  # 1-5 stars
+    rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)]) 
     feedback = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
