@@ -24,10 +24,8 @@ from .serializers import (
     DriverReviewSerializer,
 )
 
-# ===============================================================
-# ================ UTILS ========================================
-# ===============================================================
 
+# ================ UTILS ========================================
 def calculate_distance(lat1, lng1, lat2, lng2):
     """Calculate distance between two coordinates (Haversine formula)."""
     lat1, lng1, lat2, lng2 = map(float, [lat1, lng1, lat2, lng2])
@@ -37,10 +35,7 @@ def calculate_distance(lat1, lng1, lat2, lng2):
     return 6371 * 2 * math.asin(math.sqrt(a))  # km
 
 
-# ===============================================================
 # ================ AUTH =========================================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register(request):
@@ -77,10 +72,7 @@ def me(request):
     return Response({"username": request.user.username, "role": request.user.role})
 
 
-# ===============================================================
 # ================ DRIVER PROFILE ===============================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_driver_profile(request):
@@ -94,10 +86,7 @@ def create_driver_profile(request):
     return Response(serializer.errors, status=400)
 
 
-# ===============================================================
 # ================ RIDE REQUEST ================================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_ride_request(request):
@@ -117,10 +106,9 @@ def list_my_ride_requests(request):
     rides = RideRequest.objects.filter(customer=request.user)
     serializer = RideRequestSerializer(rides, many=True)
     return Response(serializer.data)
-    # ===============================================================
-# ================ BOOKING ======================================
-# ===============================================================
 
+  
+# ================ BOOKING ======================================
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_booking(request, ride_request_id):
@@ -169,12 +157,9 @@ def update_booking_status(request, booking_id):
     booking.ride_request.save()
 
     return Response({"message": f"Booking marked as {new_status}"}, status=200)
+
  
-
- # ===============================================================
 # ================ CANCEL RIDE =================================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def cancel_ride_request(request, ride_request_id):
@@ -188,12 +173,7 @@ def cancel_ride_request(request, ride_request_id):
     return Response({"message": "Ride cancelled successfully"}, status=200)
 
 
-
-
-# ===============================================================
 # ================ AVAILABLE RIDES ==============================
-# ===============================================================
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_available_rides(request):
@@ -204,10 +184,7 @@ def list_available_rides(request):
     return Response(serializer.data)
 
 
-# ===============================================================
 # ================ DRIVER REVIEW ================================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_review(request, booking_id):
@@ -254,4 +231,71 @@ def list_driver_reviews(request, driver_id):
     reviews = DriverReview.objects.filter(driver_id=driver_id).order_by("-created_at")
     serializer = DriverReviewSerializer(reviews, many=True)
     return Response(serializer.data)
-asm-fuwa-chj
+
+
+# ================ LEADERBOARD =================================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def suggest_drivers(request, ride_request_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
+    except RideRequest.DoesNotExist:
+        return Response({"error": "Ride not found"}, status=404)
+
+    if not ride.pickup_lat or not ride.pickup_lng:
+        return Response({"error": "Ride missing coordinates"}, status=400)
+
+    drivers = DriverProfile.objects.all()
+    driver_distances = []
+
+    for d in drivers:
+        if d.current_lat and d.current_lng:
+            distance = calculate_distance(ride.pickup_lat, ride.pickup_lng, d.current_lat, d.current_lng)
+            driver_distances.append({
+                "driver_id": d.user.id,
+                "username": d.user.username,
+                "vehicle": d.vehicle_details,
+                "distance_km": round(distance, 2),
+            })
+
+    driver_distances.sort(key=lambda x: x["distance_km"])
+    return Response(driver_distances[:5])
+
+
+
+
+
+from django.db.models import Count, Avg, Q
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def driver_leaderboard(request):
+    try:
+        drivers = (
+            Account.objects.filter(role="driver")
+            .annotate(
+                total_completed=Count(
+                    "bookings",                                # <-- correct related_name
+                    filter=Q(bookings__status="completed")     # <-- filter on completed
+                ),
+                avg_rating=Avg("driver_reviews__rating")        # <-- matches DriverReview.related_name
+            )
+            .order_by("-total_completed", "-avg_rating")[:10]
+        )
+
+        leaderboard = [
+            {
+                "username": d.username,
+                "total_completed": d.total_completed or 0,
+                "avg_rating": round(d.avg_rating or 0, 2),
+            }
+            for d in drivers
+        ]
+        return Response(leaderboard, status=200)
+    except Exception as e:
+        print("🚨 Leaderboard Error:", e)
+        return Response({"error": str(e)}, status=500)
+
