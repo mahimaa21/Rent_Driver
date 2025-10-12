@@ -193,7 +193,34 @@ def update_booking_status(request, booking_id):
     return Response({"message": f"Booking marked as {new_status}"}, status=200)
 
 
- 
+# ================ CANCEL BOOKING (CUSTOMER SIDE) ===============
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_booking(request, booking_id):
+    """Allow customers to cancel a ride they booked"""
+    user = request.user
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({"error": "Booking not found"}, status=404)
+
+    # customer cancel korbe
+    if booking.ride_request.customer != user:
+        return Response({"error": "Not authorized to cancel this ride"}, status=403)
+
+    
+    if booking.status in ["completed", "cancelled"]:
+        return Response({"error": f"Cannot cancel a {booking.status} ride"}, status=400)
+
+    booking.status = "cancelled"
+    booking.save()
+    ride = booking.ride_request
+    ride.status = "cancelled"
+    ride.save()
+
+    return Response({"message": "Ride cancelled successfully"}, status=200)
+
+
 # ================ CANCEL RIDE =================================
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -206,131 +233,4 @@ def cancel_ride_request(request, ride_request_id):
     ride.status = "cancelled"
     ride.save()
     return Response({"message": "Ride cancelled successfully"}, status=200)
-
-
-# ================ AVAILABLE RIDES ==============================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_available_rides(request):
-    if request.user.role != "driver":
-        return Response({"error": "Only drivers can view rides"}, status=403)
-    rides = RideRequest.objects.filter(status="pending")
-    serializer = RideRequestSerializer(rides, many=True)
-    return Response(serializer.data)
-
-
-# ================ DRIVER REVIEW ================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_review(request, booking_id):
-    try:
-        booking = Booking.objects.get(id=booking_id)
-    except Booking.DoesNotExist:
-        return Response({"error": "Booking not found"}, status=404)
-
-
-    if request.user.role != "customer":
-        return Response({"error": "Only customers can submit reviews"}, status=403)
-
-    if booking.ride_request.customer != request.user:  
-        return Response({"error": "You are not the owner of this booking"}, status=403)
-
-    if booking.status != "completed":
-        return Response({"error": "You can only review completed rides"}, status=400)
-
-    if DriverReview.objects.filter(booking=booking).exists():
-        return Response({"error": "You already reviewed this booking"}, status=400)
-
-    if not booking.driver:
-        return Response({"error": "No driver assigned to this booking"}, status=400)
-
-    try:
-        rating = int(request.data.get("rating", 0))
-    except (TypeError, ValueError):
-        return Response({"error": "Invalid rating value"}, status=400)
-
-    feedback = (request.data.get("feedback") or "").strip()
-
-    DriverReview.objects.create(
-        booking=booking,
-        driver=booking.driver,
-        customer=request.user,
-        rating=rating,
-        feedback=feedback,
-    )
-
-    return Response({"message": "Review submitted successfully!"}, status=201)
-
-@api_view(["GET"])
-def list_driver_reviews(request, driver_id):
-    reviews = DriverReview.objects.filter(driver_id=driver_id).order_by("-created_at")
-    serializer = DriverReviewSerializer(reviews, many=True)
-    return Response(serializer.data)
-
-
-# ================ LEADERBOARD =================================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def suggest_drivers(request, ride_request_id):
-    try:
-        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
-    except RideRequest.DoesNotExist:
-        return Response({"error": "Ride not found"}, status=404)
-
-    if not ride.pickup_lat or not ride.pickup_lng:
-        return Response({"error": "Ride missing coordinates"}, status=400)
-
-    drivers = DriverProfile.objects.all()
-    driver_distances = []
-
-    for d in drivers:
-        if d.current_lat and d.current_lng:
-            distance = calculate_distance(ride.pickup_lat, ride.pickup_lng, d.current_lat, d.current_lng)
-            driver_distances.append({
-                "driver_id": d.user.id,
-                "username": d.user.username,
-                "vehicle": d.vehicle_details,
-                "distance_km": round(distance, 2),
-            })
-
-    driver_distances.sort(key=lambda x: x["distance_km"])
-    return Response(driver_distances[:5])
-
-
-
-
-
-from django.db.models import Count, Avg, Q
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def driver_leaderboard(request):
-    try:
-        drivers = (
-            Account.objects.filter(role="driver")
-            .annotate(
-                total_completed=Count(
-                    "bookings",                               
-                    filter=Q(bookings__status="completed")     
-                ),
-                avg_rating=Avg("driver_reviews__rating")        
-            )
-            .order_by("-total_completed", "-avg_rating")[:10]
-        )
-
-        leaderboard = [
-            {
-                "username": d.username,
-                "total_completed": d.total_completed or 0,
-                "avg_rating": round(d.avg_rating or 0, 2),
-            }
-            for d in drivers
-        ]
-        return Response(leaderboard, status=200)
-    except Exception as e:
-        print("🚨 Leaderboard Error:", e)
-        return Response({"error": str(e)}, status=500)
 
