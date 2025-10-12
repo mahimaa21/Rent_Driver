@@ -64,7 +64,7 @@ def logout_view(request):
     return Response({"message": "Logout successful"}, status=200)
 
 
-    @api_view(["GET"])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
     """Return current user's info (role, username)."""
@@ -72,17 +72,52 @@ def me(request):
 
 
 # ================ DRIVER PROFILE ===============================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_driver_profile(request):
-    if request.user.role != "driver":
-        return Response({"error": "Only drivers can create a profile"}, status=403)
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
 
-    serializer = DriverProfileSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+class DriverProfileCreateView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != "driver":
+            return Response({"error": "Only drivers can create a profile"}, status=403)
+        serializer = DriverProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+class DriverProfileDetailView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            profile = DriverProfile.objects.get(user=request.user)
+        except DriverProfile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=404)
+        serializer = DriverProfileSerializer(profile)
+        return Response(serializer.data)
+
+    def put(self, request):
+        try:
+            profile = DriverProfile.objects.get(user=request.user)
+        except DriverProfile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=404)
+        serializer = DriverProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request):
+        try:
+            profile = DriverProfile.objects.get(user=request.user)
+        except DriverProfile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=404)
+        profile.delete()
+        return Response({"message": "Profile deleted"}, status=204)
 
 
 # ================ RIDE REQUEST ================================
@@ -106,7 +141,7 @@ def list_my_ride_requests(request):
     serializer = RideRequestSerializer(rides, many=True)
     return Response(serializer.data)
 
-  
+
 # ================ BOOKING ======================================
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -157,6 +192,7 @@ def update_booking_status(request, booking_id):
 
     return Response({"message": f"Booking marked as {new_status}"}, status=200)
 
+
  
 # ================ CANCEL RIDE =================================
 @api_view(["POST"])
@@ -192,7 +228,7 @@ def create_review(request, booking_id):
     except Booking.DoesNotExist:
         return Response({"error": "Booking not found"}, status=404)
 
-    # Only customers can review their completed ride
+
     if request.user.role != "customer":
         return Response({"error": "Only customers can submit reviews"}, status=403)
 
