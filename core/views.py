@@ -11,10 +11,9 @@ from .models import (
     DriverProfile,
     RideRequest,
     Booking,
-    EmergencyContact,
-    EmergencyAlert,
     DriverReview,
 )
+from emergency.models import EmergencyContact, EmergencyAlert
 from .serializers import (
     RegisterSerializer,
     DriverProfileSerializer,
