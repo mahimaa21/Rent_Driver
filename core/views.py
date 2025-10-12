@@ -235,10 +235,7 @@ def cancel_ride_request(request, ride_request_id):
     return Response({"message": "Ride cancelled successfully"}, status=200)
 
 
-# ===============================================================
 # ================ AVAILABLE RIDES ==============================
-# ===============================================================
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_available_rides(request):
@@ -249,10 +246,7 @@ def list_available_rides(request):
     return Response(serializer.data)
 
 
-# ===============================================================
 # ================ DRIVER REVIEW ================================
-# ===============================================================
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_review(request, booking_id):
@@ -301,9 +295,7 @@ def list_driver_reviews(request, driver_id):
     return Response(serializer.data)
 
 
-# ===============================================================
 # ================ LEADERBOARD =================================
-# ===============================================================
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def suggest_drivers(request, ride_request_id):
@@ -368,3 +360,117 @@ def driver_leaderboard(request):
     except Exception as e:
         print("🚨 Leaderboard Error:", e)
         return Response({"error": str(e)}, status=500)
+    
+
+# ================ EMERGENCY SYSTEM =============================
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_emergency_contact(request):
+    serializer = EmergencyContactSerializer(data=request.data)
+    if serializer.is_valid():
+        contact, _ = EmergencyContact.objects.update_or_create(
+            user=request.user, defaults={"phone_number": serializer.validated_data["phone_number"]}
+        )
+        return Response({"message": "Emergency contact saved", "phone_number": contact.phone_number})
+    return Response(serializer.errors, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_emergency_contact(request):
+    try:
+        contact = request.user.emergency_contact
+        serializer = EmergencyContactSerializer(contact)
+        return Response(serializer.data)
+    except EmergencyContact.DoesNotExist:
+        return Response({"error": "No emergency contact set"}, status=404)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_alert(request):
+    try:
+        contact = request.user.emergency_contact
+        alert = EmergencyAlert.objects.create(user=request.user, contact=contact, status="sent")
+        return Response({
+            "message": f"🚨 Alert triggered to {contact.phone_number}",
+            "alert_id": alert.id,
+            "triggered_at": alert.triggered_at,
+        })
+    except EmergencyContact.DoesNotExist:
+        return Response({"error": "No emergency contact set"}, status=404)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_alerts(request):
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by("-triggered_at")
+    return Response([
+        {"contact": a.contact.phone_number, "status": a.status, "triggered_at": a.triggered_at}
+        for a in alerts
+    ])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    """Return current user's info (role, username, id)."""
+    return Response({
+        "id": request.user.id,          # <-- add this line
+        "username": request.user.username,
+        "role": request.user.role
+    })
+
+
+# ================ GEOLOCATION: NEARBY SEARCH ====================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def nearby_drivers(request):
+    """Show nearby drivers for a customer based on their current location"""
+    if request.user.role != "customer":
+        return Response({"error": "Only customers can view nearby drivers"}, status=403)
+
+    try:
+        lat = float(request.query_params.get("lat"))
+        lng = float(request.query_params.get("lng"))
+    except (TypeError, ValueError):
+        return Response({"error": "Invalid or missing coordinates"}, status=400)
+
+    nearby = []
+    for d in DriverProfile.objects.filter(user__role="driver"):
+        if d.current_lat and d.current_lng:
+            dist = calculate_distance(lat, lng, d.current_lat, d.current_lng)
+            nearby.append({
+                "driver_id": d.user.id,
+                "username": d.user.username,
+                "vehicle": d.vehicle_details,
+                "distance_km": round(dist, 2),
+            })
+    nearby.sort(key=lambda x: x["distance_km"])
+    return Response(nearby[:10])  # always return 10 closest drivers
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def nearby_rides(request):
+    """Show nearby ride requests for a driver"""
+    if request.user.role != "driver":
+        return Response({"error": "Only drivers can view nearby rides"}, status=403)
+
+    try:
+        lat = float(request.query_params.get("lat"))
+        lng = float(request.query_params.get("lng"))
+    except (TypeError, ValueError):
+        return Response({"error": "Invalid or missing coordinates"}, status=400)
+
+    nearby = []
+    for ride in RideRequest.objects.filter(status="pending"):
+        if ride.pickup_lat and ride.pickup_lng:
+            dist = calculate_distance(lat, lng, ride.pickup_lat, ride.pickup_lng)
+            if dist <= 5:
+                nearby.append({
+                    "ride_id": ride.id,
+                    "customer": ride.customer.username,
+                    "pickup_location": ride.pickup_location,
+                    "distance_km": round(dist, 2),
+                })
+    nearby.sort(key=lambda x: x["distance_km"])
+    return Response(nearby[:10])
