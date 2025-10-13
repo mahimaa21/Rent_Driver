@@ -1,7 +1,9 @@
 from django.urls import path
 from django.views.generic import TemplateView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from . import views
+from core.views import DriverProfileCreateView, DriverProfileDetailView
 
 urlpatterns = [
     # ---------- AUTH ----------
@@ -11,7 +13,8 @@ urlpatterns = [
     path("api/me/", views.me, name="me"),
 
     # ---------- DRIVER PROFILE ----------
-    path("api/driver/profile/create/", views.create_driver_profile, name="create_driver_profile"),
+    path("api/driver/profile/create/", DriverProfileCreateView.as_view(), name="create_driver_profile"),
+    path("api/driver/profile/me/", DriverProfileDetailView.as_view(), name="driver_profile_detail"),
 
     # ---------- RIDE REQUEST ----------
     path("api/rides/create/", views.create_ride_request, name="create_ride_request"),
@@ -24,9 +27,7 @@ urlpatterns = [
     path("api/bookings/my/", views.list_my_bookings, name="list_my_bookings"),
     path("api/booking/<int:booking_id>/status/", views.update_booking_status, name="update_booking_status"),
 
-
-
-# ---------- DRIVER: AVAILABLE RIDES ----------
+    # ---------- DRIVER: AVAILABLE RIDES ----------
     path("api/rides/available/", views.list_available_rides, name="list_available_rides"),
 
     # ---------- REVIEWS ----------
@@ -35,3 +36,26 @@ urlpatterns = [
 
     # ---------- LEADERBOARD ----------
     path("api/leaderboard/drivers/", views.driver_leaderboard, name="driver_leaderboard"),
+
+    # ---------- EMERGENCY ----------
+    path("api/emergency/set/", views.set_emergency_contact, name="set_emergency_contact"),
+    path("api/emergency/get/", views.get_emergency_contact, name="get_emergency_contact"),
+    path("api/emergency/alert/", views.trigger_alert, name="trigger_alert"),
+    path("api/emergency/alerts/", views.list_alerts, name="list_alerts"),
+    path("api/nearby-drivers/", views.nearby_drivers, name="nearby_drivers"),
+    path("api/nearby-rides/", views.nearby_rides, name="nearby_rides"),
+    path("api/booking/<int:booking_id>/cancel/", views.cancel_booking, name="cancel_booking"),
+
+]
+
+# ---------- FRONTEND ROUTES ----------
+urlpatterns += [
+    path("", TemplateView.as_view(template_name="index.html"), name="home"),
+    path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
+    path("register/", TemplateView.as_view(template_name="register.html"), name="register_page"),
+    path("driver/profile/", TemplateView.as_view(template_name="driver_profile.html"), name="driver_profile_page"),
+    path("customer/dashboard/", TemplateView.as_view(template_name="customer_dashboard.html"), name="customer_dashboard"),
+    path("driver/dashboard/", TemplateView.as_view(template_name="driver_dashboard.html"), name="driver_dashboard"),
+    path("leaderboard/", TemplateView.as_view(template_name="leaderboard.html"), name="leaderboard"),
+    path("emergency/", TemplateView.as_view(template_name="emergency.html"), name="emergency"),
+]
