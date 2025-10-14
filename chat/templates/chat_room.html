@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Chat Room{% endblock %}
+{% block content %}
+<style>
+  .chat-section .container {
+    max-width: 900px;
+    min-width: 700px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .chat-box {
+    height: 600px;
+    min-height: 400px;
+    overflow-y: auto;
+    background: #f4f6fb;
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e3e7ee;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    font-size: 1.15rem;
+  }
+  .chat-message {
+    max-width: 75%;
+    padding: 0.7em 1.1em;
+    border-radius: 18px;
+    font-size: 1rem;
+    line-height: 1.5;
+    position: relative;
+    background: #e9f0fa;
+    color: #222;
+    align-self: flex-start;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    word-break: break-word;
+    margin-bottom: 0.1em;
+  }
+  .chat-message.me {
+    background: #2563eb;
+    color: #fff;
+    align-self: flex-end;
+  }
+  .chat-message .chat-time {
+    display: block;
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 0.2em;
+    text-align: right;
+  }
+  .chat-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .chat-form input[type="text"] {
+    flex: 1;
+    border-radius: 20px;
+    border: 1px solid #d1d5db;
+    padding: 0.7em 1em;
+    font-size: 1rem;
+    outline: none;
+    background: #f9fafb;
+    transition: border 0.2s;
+  }
+  .chat-form input[type="text"]:focus {
+    border: 1.5px solid #2563eb;
+    background: #fff;
+  }
+</style>
+<section class="chat-section">
+  <div class="container">
+    <div class="chat-header">
+      <h2 style="margin: 0;">Booking Chat</h2>
+      <a href="/customer/dashboard/" class="btn btn-secondary">&larr; Back</a>
+    </div>
+    <div id="chatUserInfo" class="chat-user-info" style="margin-bottom: 0.5rem;"></div>
+    <div id="chatError" class="msg error" style="display:none;"></div>
+    <div id="chatLoading" class="msg" style="display:none;">Loading...</div>
+    <div id="chatBox" class="chat-box"></div>
+    <form id="chatForm" class="chat-form">
+      <input type="text" id="chatInput" placeholder="Type your message..." autocomplete="off" required />
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block extra_scripts %}
+<script src="{% static 'js/chat.js' %}"></script>
+{{ booking_id|json_script:"booking-id" }}
+<script>
+  window.BOOKING_ID = JSON.parse(document.getElementById('booking-id').textContent);
+</script>
+{% endblock %}
