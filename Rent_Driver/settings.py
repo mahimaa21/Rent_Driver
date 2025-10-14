@@ -1,18 +1,18 @@
 from pathlib import Path
 from datetime import timedelta
 
-BASE_DIR = Path(_file_).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-g^%t33=v(zbnm3rrjre0$rsl7)p6q1b#l-)e*=&gfc=d1@s**!"
 
-
+# ⚠️ Turn DEBUG=False in production
 DEBUG = True  
 
-ALLOWED_HOSTS = ["*"]  
+ALLOWED_HOSTS = ["*"]  # 👉 allow all hosts for now (update in production)
 
 
-
+# ---------- Apps ----------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -21,20 +21,23 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    
+    # Third-party
     "rest_framework",
     "rest_framework_simplejwt",  # JWT
     "corsheaders",               # For frontend integration (React/Flutter etc.)
 
-    
+    # Local
     "core",
-     "emergency",
+    "emergency",
     "utilities",
+    "chat",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+
+    # Enable CORS
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.common.CommonMiddleware",
@@ -49,7 +52,7 @@ ROOT_URLCONF = "rentadriver.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "core" / "templates"],  
+        "DIRS": [BASE_DIR / "core" / "templates"],  # ✅ points to templates folder
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -66,6 +69,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "rentadriver.wsgi.application"
 
 
+# ---------- Database ----------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -74,7 +78,7 @@ DATABASES = {
 }
 
 
-
+# ---------- Password Validators ----------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -82,12 +86,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+
+# ---------- Internationalization ----------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 
+# ---------- Static & Media ----------
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -96,9 +103,11 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
+# ---------- Custom User ----------
 AUTH_USER_MODEL = "core.Account"
 
 
+# ---------- REST Framework & JWT ----------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -109,10 +118,11 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),   
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),      
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),   # 1 hour
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),      # 7 days
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 
-CORS_ALLOW_ALL_ORIGINS = True   
+# ---------- CORS (for frontend apps like React/Flutter) ----------
+CORS_ALLOW_ALL_ORIGINS = True   # ⚠️ allow all during dev
