@@ -1,15 +1,17 @@
-/* STYLE VARIABLES */
+/* STYLE */
 :root{
-  --bg: #ffffff;         /* white background */
-  --card: #fafafa;       /* light gray card background */
-  --muted: #6b7280;      /* gray-500 for muted text */
-  --accent: #b91c1c;     /* red-700 primary accent */
-  --accent-2: #7f1d1d;   /* red-900 secondary accent */
-  --glass: rgba(185,28,28,0.04); /* red with transparency */
-  --text-primary: #111827; /* gray-900 for main text */
-  --text-secondary: #374151; /* gray-700 for secondary text */
-  --border: #e5e7eb;     /* gray-200 for borders */
-  --shadow: rgba(0,0,0,0.1); /* light shadow */
+  --bg: #ffffff;         
+  --card: #fafafa;       
+  --muted: #6b7280;      
+  --accent: #b91c1c;     
+  --accent-2: #7f1d1d;   
+  --glass: rgba(185,28,28,0.04); 
+  --text-primary: #111827; 
+  --text-secondary: #374151; 
+  --border: #e5e7eb;     
+  --shadow: rgba(0,0,0,0.1); 
+  --success: #10b981;    
+  --success-light: #d1fae5; 
 
   --radius: 12px;
   --fw-regular: 400;
@@ -17,7 +19,7 @@
   --max-width: 1100px;
 }
 
-* { 
+* {
   box-sizing: border-box;
   outline: none;
 }
@@ -26,7 +28,7 @@
   outline: none !important;
 }
 
-/* Remove browser default focus styles */
+
 button::-moz-focus-inner {
   border: 0;
   outline: none;
@@ -36,14 +38,14 @@ a, button, input, select, textarea {
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
-html,body { 
-  height:100%; 
+html,body {
+  height:100%;
   margin: 0;
   padding: 0;
   outline: none;
 }
 
-/* Sticky Footer Layout */
+
 body {
   min-height: 100vh;
   display: flex;
@@ -74,21 +76,21 @@ body{
   flex-direction: column;
 }
 
-/* Container */
+
 .container{
   width: 92%;
   max-width: var(--max-width);
   margin: 0 auto;
 }
 
-/* Page Layout */
+
 .page {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* Ensure footer sticks to bottom */
+
 footer {
   margin-top: auto;
   padding: 1.5rem 0;
@@ -105,9 +107,8 @@ footer p {
   font-weight: 500;
 }
 
-/* ========== ENHANCED DYNAMIC NAVBAR STYLES ========== */
 
-/* Navbar */
+
 .navbar {
   background: rgba(255,255,255,0.95);
   backdrop-filter: blur(20px);
@@ -119,7 +120,7 @@ footer p {
   padding: 0.75rem 0;
 }
 
-/* Navbar on scroll effect */
+
 .navbar.scrolled {
   background: rgba(255,255,255,0.98);
   box-shadow: 0 4px 20px rgba(185,28,28,0.15);
@@ -135,7 +136,7 @@ footer p {
   transition: all 0.3s ease;
 }
 
-/* Enhanced Logo */
+
 .logo {
   margin: 0;
   font-size: 1.5rem;
@@ -190,7 +191,7 @@ footer p {
   color: var(--accent);
 }
 
-/* Enhanced Navigation Links Container */
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -198,7 +199,7 @@ footer p {
   flex-wrap: wrap;
 }
 
-/* Individual Navigation Links with Enhanced Effects */
+
 .nav-links a {
   display: inline-flex;
   align-items: center;
@@ -230,7 +231,7 @@ footer p {
   left: 100%;
 }
 
-/* Navigation Link Hover Effects */
+
 .nav-links a:hover,
 .nav-links a:focus {
   color: var(--accent);
@@ -239,14 +240,14 @@ footer p {
   box-shadow: 0 4px 15px rgba(185,28,28,0.2);
 }
 
-/* Active Link Styling */
+
 .nav-links a.active {
   color: var(--accent);
   background: rgba(185,28,28,0.1);
   font-weight: 600;
 }
 
-/* Enhanced CTA Button */
+
 .nav-links .btn {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: #ffffff !important;
@@ -281,7 +282,7 @@ footer p {
   background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
 }
 
-/* Navigation Icons - FORCED SIZING */
+
 .nav-icon {
   width: 12px !important;
   height: 12px !important;
@@ -299,12 +300,11 @@ footer p {
   transform: scale(1.05);
 }
 
-/* Hidden Navigation Items */
+
 .nav-hidden {
   display: none !important;
 }
 
-/* Show navigation items when needed */
 .nav-visible {
   display: inline-flex !important;
   animation: slideIn 0.3s ease-out;
@@ -321,7 +321,7 @@ footer p {
   }
 }
 
-/* Dashboard-specific navbar styling */
+
 .navbar.dashboard-context {
   background: rgba(255,255,255,0.98);
   box-shadow: 0 2px 15px rgba(185,28,28,0.12);
@@ -343,7 +343,7 @@ footer p {
   color: var(--accent);
 }
 
-/* Page transition effects */
+
 .page {
   animation: fadeIn 0.4s ease-out;
 }
@@ -359,7 +359,7 @@ footer p {
   }
 }
 
-/* ========== EMERGENCY PAGE STYLES ========== */
+
 
 .emergency-header {
   text-align: center;
@@ -509,7 +509,7 @@ footer p {
   margin: 0;
 }
 
-/* ========== LEADERBOARD PAGE STYLES ========== */
+
 
 .leaderboard-header {
   text-align: center;
@@ -666,27 +666,27 @@ footer p {
   margin: 0;
 }
 
-/* Mobile Responsive for Emergency & Leaderboard */
+
 @media (max-width: 768px) {
   .emergency-grid {
     grid-template-columns: 1fr;
   }
-  
+ 
   .leaderboard-stats {
     grid-template-columns: 1fr;
   }
-  
+ 
   .emergency-title,
   .leaderboard-title {
     font-size: 1.8rem;
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+ 
   .stat-card {
     padding: 1.25rem;
   }
-  
+ 
   .btn-alert {
     padding: 0.875rem 1.5rem;
     font-size: 1rem;
@@ -695,7 +695,7 @@ footer p {
 
 
 
-/* Hero (example) */
+
 .hero{
   padding: 3rem 0;
   display:flex;
@@ -711,7 +711,7 @@ footer p {
 }
 .hero-sub{ color:var(--muted); margin:0 0 1rem; }
 
-/* Footer */
+
 .site-footer {
   padding: 1.2rem 0;
   border-top: 1px solid var(--border);
@@ -722,43 +722,42 @@ footer p {
 .footer-nav a { color:var(--muted); text-decoration:none; margin-left: 1rem; font-size:0.95rem; }
 .footer-nav a:hover { color: var(--text-primary); }
 
-/* Enhanced Mobile Navigation */
-@media (max-width: 1024px) {
+
   .navbar .container {
     gap: 1rem;
   }
-  
+ 
   .nav-links {
     gap: 0.4rem;
   }
-  
+ 
   .nav-links a {
     padding: 0.6rem 1rem;
     font-size: 0.9rem;
   }
-}
+
 
 @media (max-width: 768px) {
   .navbar {
     padding: 0.5rem 0;
   }
-  
+ 
   .navbar .container {
     flex-direction: column;
     gap: 1rem;
     align-items: center;
   }
-  
+ 
   .logo {
     font-size: 1.3rem;
   }
-  
+ 
   .nav-links {
     justify-content: center;
     gap: 0.3rem;
     width: 100%;
   }
-  
+ 
   .nav-links a {
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
@@ -766,12 +765,12 @@ footer p {
     max-width: 120px;
     justify-content: center;
   }
-  
+ 
   .nav-links .btn {
     padding: 0.7rem 1.2rem;
     min-width: 120px;
   }
-  
+ 
   .nav-icon {
     width: 10px !important;
     height: 10px !important;
@@ -786,13 +785,13 @@ footer p {
   .navbar .container {
     padding: 0 1rem;
   }
-  
+ 
   .nav-links {
     flex-direction: column;
     width: 100%;
     gap: 0.5rem;
   }
-  
+ 
   .nav-links a {
     width: 100%;
     max-width: none;
@@ -800,36 +799,36 @@ footer p {
     justify-content: center;
     padding: 0.8rem 1rem;
   }
-  
+ 
   .logo {
     font-size: 1.2rem;
   }
 }
 
-/* Enhanced hover effects for desktop */
+
 @media (min-width: 769px) {
   .nav-links a:hover {
     transform: translateY(-3px) scale(1.05);
   }
-  
+ 
   .nav-links .btn:hover {
     transform: translateY(-4px) scale(1.08);
   }
 }
 
-/* Utility classes */
+
 .hidden { display:none !important; }
 .center { text-align:center; }
 
-/* Simple accessible focus styles */
+
 * {
   outline: none;
 }
 
-a:focus-visible, button:focus-visible { 
-  outline: 2px solid var(--accent); 
-  outline-offset: 2px; 
-  border-radius: 6px; 
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .nav-link:focus {
@@ -844,18 +843,6 @@ a:focus-visible, button:focus-visible {
 
 
 
-
-
-
-
-
-/* ---------- Improved Hero landing styles ---------- */
-
-/* ---------- Improved feature section ---------- */
-
-
-
-/* 5. Add a pseudo-element for the fade effect */
 
 .hero-features {
   margin-top: 2rem;
@@ -931,7 +918,7 @@ a:focus-visible, button:focus-visible {
   line-height: 1.45;
 }
 
-/* Mobile optimization */
+
 @media (max-width: 768px) {
   .hero-features {
     grid-template-columns: 1fr;
@@ -945,9 +932,7 @@ a:focus-visible, button:focus-visible {
   }
 }
 
-/* ========== ENHANCED HOMEPAGE STYLES ========== */
 
-/* Hero Landing Section */
 .hero-landing {
   position: relative;
   min-height: 100vh;
@@ -1080,7 +1065,7 @@ a:focus-visible, button:focus-visible {
   font-weight: 500;
 }
 
-/* Features Section */
+
 .features-section {
   padding: 5rem 0;
 }
@@ -1175,7 +1160,7 @@ a:focus-visible, button:focus-visible {
   z-index: 1;
 }
 
-/* CTA Section */
+
 .cta-section {
   padding: 5rem 0;
   border-top: 1px solid var(--border);
@@ -1209,7 +1194,7 @@ a:focus-visible, button:focus-visible {
   align-items: center;
 }
 
-/* Animations */
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -1221,51 +1206,51 @@ a:focus-visible, button:focus-visible {
   }
 }
 
-/* Mobile Responsive */
+
 @media (max-width: 768px) {
   .hero-landing {
     min-height: 90vh;
     padding: 1rem 0;
   }
-  
+ 
   .hero-title {
     font-size: 2.5rem;
   }
-  
+ 
   .hero-description {
     font-size: 1.1rem;
   }
-  
+ 
   .hero-actions {
     flex-direction: column;
     gap: 0.8rem;
   }
-  
+ 
   .hero-stats {
     gap: 2rem;
   }
-  
+ 
   .stat-number {
     font-size: 1.5rem;
   }
-  
+ 
   .features-grid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+ 
   .feature-card {
     padding: 1.5rem;
   }
-  
+ 
   .section-title {
     font-size: 2rem;
   }
-  
+ 
   .cta-title {
     font-size: 2rem;
   }
-  
+ 
   .cta-actions {
     flex-direction: column;
     gap: 0.8rem;
@@ -1277,19 +1262,16 @@ a:focus-visible, button:focus-visible {
     flex-direction: column;
     gap: 1.5rem;
   }
-  
+ 
   .features-grid {
     grid-template-columns: 1fr;
   }
-  
+ 
   .feature-card {
     padding: 1.2rem;
   }
 }
 
-/* ========== FORM STYLES ========== */
-
-/* Form Section */
 .form-section {
   padding: 3rem 0;
   min-height: 80vh;
@@ -1386,7 +1368,7 @@ a:focus-visible, button:focus-visible {
   border: 1px solid #fecaca;
 }
 
-/* ========== DASHBOARD STYLES ========== */
+
 
 .dashboard {
   padding: 2rem 0;
@@ -1544,7 +1526,7 @@ a:focus-visible, button:focus-visible {
   transform: translateY(-1px);
 }
 
-/* Button Utilities */
+
 .w-100 {
   width: 100%;
 }
@@ -1568,32 +1550,32 @@ a:focus-visible, button:focus-visible {
   transform: translateY(-2px);
 }
 
-/* Responsive Design for Forms and Dashboard */
+
 @media (max-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-  
+ 
   .form-container {
     padding: 2rem 1.5rem;
     margin: 1rem;
   }
-  
+ 
   .card {
     padding: 1.25rem;
   }
-  
+ 
   .welcome-title {
     font-size: 1.6rem;
   }
 }
 
-/* ========== ENHANCED FORM STYLES ========== */
+
 
 .enhanced-form {
   background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
   border: 2px solid var(--border);
-  
+ 
   padding: 2rem;
   position: relative;
   overflow: hidden;
@@ -1716,13 +1698,13 @@ a:focus-visible, button:focus-visible {
   box-shadow: 0 8px 20px rgba(185,28,28,0.3);
 }
 
-/* Enhanced Card Styles */
+
 .rides-card {
   border-left: 4px solid var(--accent);
 }
 
 .create-card {
-  /* No left border, only top border via enhanced-form class */
+  
 }
 
 .enhanced-rides {
@@ -1809,7 +1791,7 @@ a:focus-visible, button:focus-visible {
   margin: 0;
 }
 
-/* Enhanced Rating Form */
+
 .enhanced-rating {
   background: #fafafa;
   border: 2px solid var(--border);
@@ -1912,7 +1894,7 @@ a:focus-visible, button:focus-visible {
   gap: 0.5rem;
 }
 
-/* Enhanced Message Styles */
+
 .msg {
   margin-top: 1rem;
   padding: 1rem;
@@ -1936,26 +1918,162 @@ a:focus-visible, button:focus-visible {
   border-color: #ef4444;
 }
 
-/* Mobile Responsive Enhancements */
+
+.nearby-rides-container {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.nearby-rides-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nearby-rides-container::-webkit-scrollbar-track {
+  background: var(--card);
+  border-radius: 3px;
+}
+
+.nearby-rides-container::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.nearby-rides-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-2);
+}
+
+.ride-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+.ride-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--accent);
+}
+
+.ride-info {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.ride-route {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ride-route .pickup,
+.ride-route .dropoff {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.ride-route .arrow {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.ride-distance {
+  display: flex;
+  align-items: center;
+}
+
+.ride-distance .distance {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  background: var(--card);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.accept-btn {
+  background: linear-gradient(135deg, var(--success), #059669);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: var(--fw-medium);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.accept-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+}
+
+.accept-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+
 @media (max-width: 768px) {
   .enhanced-form {
     padding: 1.5rem;
   }
-  
+ 
   .form-header h3 {
     font-size: 1.3rem;
   }
-  
+ 
   .ride-request-form {
     gap: 1.25rem;
   }
-  
+ 
   .form-input {
     padding: 0.75rem;
   }
-  
+ 
   .btn-large {
     padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+
+ 
+  .ride-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .ride-info {
+    margin-right: 0;
+  }
+
+  .ride-route {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .ride-route .arrow {
+    align-self: center;
+  }
+
+  .accept-btn {
+    width: 100%;
+    padding: 1rem;
     font-size: 1rem;
   }
 }
