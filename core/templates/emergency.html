@@ -17,7 +17,7 @@
     </div>
 
     <div class="emergency-grid">
-      <!-- Emergency Contact Card -->
+     
       <div class="card emergency-contact-card">
         <div class="card-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -26,8 +26,19 @@
         </div>
         <h3>Emergency Contact</h3>
         <p class="card-description">Set up your emergency contact for quick access during critical situations</p>
-        
-        <form id="emergencyForm" class="emergency-form">
+       
+        {% if contact %}
+          <div class="current-contact bg-green-50 border border-green-200 rounded p-3 mb-3">
+            <p class="text-sm">Current contact: <strong>{{ contact.phone_number }}</strong></p>
+            <form method="post" action="{% url 'delete_emergency_contact' %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">Delete Contact</button>
+            </form>
+          </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'set_emergency_contact' %}" class="emergency-form">
+          {% csrf_token %}
           <div class="form-group">
             <label for="emergencyPhone" class="form-label">
               <svg class="label-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -35,7 +46,7 @@
               </svg>
               Emergency Phone Number
             </label>
-            <input type="tel" id="emergencyPhone" class="form-input" placeholder="e.g. +880 1XXX-XXXXXX" required />
+            <input type="tel" name="phone_number" class="form-input" placeholder="e.g. +880 1XXX-XXXXXX" value="{% if contact %}{{ contact.phone_number }}{% endif %}" required />
             <small class="form-help">Include country code for international numbers</small>
           </div>
           <button type="submit" class="btn btn-primary btn-save">
@@ -50,7 +61,7 @@
         <div id="emergencyMsg" class="msg"></div>
       </div>
 
-      <!-- Emergency Alert Card -->
+     
       <div class="card emergency-alert-card">
         <div class="card-icon alert-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -60,19 +71,67 @@
         </div>
         <h3>Emergency Alert</h3>
         <p class="card-description">Trigger an immediate alert to notify emergency contacts and authorities</p>
-        
+       
         <div class="alert-section">
-          <button id="alertBtn" class="btn btn-danger btn-alert">
+          <form method="post" action="{% url 'trigger_alert' %}">
+            {% csrf_token %}
+            <button class="btn btn-danger btn-alert">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             Trigger Emergency Alert
-          </button>
+            </button>
+          </form>
           <p class="alert-warning">⚠️ Use only in genuine emergency situations</p>
         </div>
-        <div id="alertMsg" class="msg"></div>
+        {% if messages %}
+          <ul class="msg">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+        {% endif %}
       </div>
 
-      <!-- Alert History Card --
+      
+      <div class="card alert-history-card">
+        <div class="card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12,6 12,12 16,14"/>
+          </svg>
+        </div>
+        <h3>Alert History</h3>
+        <p class="card-description">View your recent emergency alerts and their status</p>
+       
+        <div class="history-container">
+          <ul class="alert-history-list">
+            {% for a in alerts %}
+              <li>{{ a.triggered_at|date:"Y-m-d H:i" }} — {{ a.contact.phone_number }} — {{ a.status|title }}</li>
+            {% empty %}
+              <li>No alerts yet.</li>
+            {% endfor %}
+          </ul>
+          <div class="empty-history" {% if alerts %}style="display:none;"{% endif %}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <h4>No Emergency Alerts</h4>
+            <p>Your emergency alert history will appear here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+  const emergencyNav = document.getElementById('navEmergency');
+  if (emergencyNav) {
+    emergencyNav.classList.add('active');
+  }
+});
+</script>
+{% endblock %}
