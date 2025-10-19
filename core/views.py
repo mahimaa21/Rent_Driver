@@ -1,476 +1,324 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.db.models import Count, Avg, Q
-import math
+from math import radians, sin, cos, sqrt, atan2
+from urllib.parse import urlencode
+from urllib.request import urlopen, Request
+import json
 
 from .models import (
     Account,
     DriverProfile,
     RideRequest,
     Booking,
+    EmergencyContact,
+    EmergencyAlert,
     DriverReview,
+    ChatMessage,
 )
-from emergency.models import EmergencyContact, EmergencyAlert
-from .serializers import (
-    RegisterSerializer,
-    DriverProfileSerializer,
-    RideRequestSerializer,
-    BookingSerializer,
-    EmergencyContactSerializer,
-    DriverReviewSerializer,
-)
+from .models import Account
 
 
-# ================ UTILS ========================================
-def calculate_distance(lat1, lng1, lat2, lng2):
-    """Calculate distance between two coordinates (Haversine formula)."""
-    lat1, lng1, lat2, lng2 = map(float, [lat1, lng1, lat2, lng2])
-    lat1, lng1, lat2, lng2 = map(math.radians, [lat1, lng1, lat2, lng2])
-    dlat, dlng = lat2 - lat1, lng2 - lng1
-    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
-    return 6371 * 2 * math.asin(math.sqrt(a))  
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Return distance in kilometers between two lat/lng points."""
+    if None in [lat1, lon1, lat2, lon2]:
+        return None
+    R = 6371  # Earth radius in km
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
 
 
-# ================ AUTH =========================================
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def register(request):
-    serializer = RegisterSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({"message": "User registered successfully"}, status=201)
-    return Response(serializer.errors, status=400)
+def geocode_address(address: str):
+    try:
+        if not address:
+            return None, None
+        params = {
+            "q": address,
+            "format": "json",
+            "limit": 1,
+        }
+        url = "https://nominatim.openstreetmap.org/search?" + urlencode(params)
+        req = Request(url, headers={
+            "User-Agent": "RentADriver/1.0 (education; contact: example@example.com)",
+        })
+        with urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if isinstance(data, list) and data:
+                lat = float(data[0].get("lat"))
+                lon = float(data[0].get("lon"))
+                return lat, lon
+    except Exception:
+        pass
+    return None, None
 
 
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def login_view(request):
-    username = request.data.get("username")
-    password = request.data.get("password")
-    user = authenticate(request, username=username, password=password)
-    if user:
+def home_view(request):
+    return render(request, "index.html")
+
+
+def register_view(request):
+    if request.method == "POST":
+        username = (request.POST.get("username") or "").strip()
+        password = (request.POST.get("password") or "").strip()
+        role = request.POST.get("role")
+        if not username or not password or role not in ["customer", "driver"]:
+            messages.error(request, "Please fill all fields correctly.")
+            return redirect("register")
+        if Account.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return redirect("register")
+        user = Account.objects.create_user(username=username, password=password, role=role)
         login(request, user)
-        return Response({"message": "Login successful"}, status=200)
-    return Response({"error": "Invalid credentials"}, status=401)
+        messages.success(request, "Registration successful!")
+        # If driver, require profile completion first
+        if role == "driver":
+            return redirect("driver_profile")
+        return redirect("customer_dashboard")
+    return render(request, "register.html")
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+def login_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            messages.success(request, "Logged in successfully.")
+            return redirect("driver_dashboard" if user.role == "driver" else "customer_dashboard")
+        messages.error(request, "Invalid credentials.")
+        return redirect("login")
+    return render(request, "login.html")
+
+
 def logout_view(request):
     logout(request)
-    return Response({"message": "Logout successful"}, status=200)
+    messages.info(request, "Logged out.")
+    return redirect("home")
+
+# DRIVER PROFILE 
+@login_required
+def driver_profile_view(request):
+    if request.user.role != "driver":
+        return HttpResponseForbidden("Only drivers can create a profile")
+    if request.method == "POST":
+        full_name = request.POST.get("full_name")
+        license_number = request.POST.get("license")
+        vehicle_details = request.POST.get("vehicle")
+        nid_number = request.POST.get("nid_number")
+        address = request.POST.get("address")
+        profile_picture = request.FILES.get("profile_picture")
+        lat = request.POST.get("lat")
+        lng = request.POST.get("lng")
+        profile, _ = DriverProfile.objects.get_or_create(user=request.user)
+        if full_name:
+            profile.full_name = full_name
+        profile.license_number = license_number
+        profile.vehicle_details = vehicle_details
+        if nid_number:
+            profile.nid_number = nid_number
+        if address is not None:
+            profile.address = address
+        if profile_picture:
+            profile.profile_picture = profile_picture
+       # Jodi latitude ar longitude deya thake tahole oigulo use hobe.Ar jodi na thake, tahole deya address theke location ber kora hobe.
+        lat_val = float(lat) if lat else None
+        lng_val = float(lng) if lng else None
+
+        if lat_val is None or lng_val is None:
+            # Jodi address deya thake tahole sei address diye coordinates ber korar try kore"
+            if address:
+                g_lat, g_lng = geocode_address(address)
+                if lat_val is None:
+                    lat_val = g_lat
+                if lng_val is None:
+                    lng_val = g_lng
+                if g_lat is None or g_lng is None:
+                    messages.info(request, "Could not determine coordinates from address; you can use 'Use my location' or enter coordinates manually.")
+
+        profile.current_lat = lat_val
+        profile.current_lng = lng_val
+        profile.save()
+        messages.success(request, "Profile saved.")
+        return redirect("driver_dashboard")
+    try:
+        profile = DriverProfile.objects.get(user=request.user)
+    except DriverProfile.DoesNotExist:
+        profile = None
+    return render(request, "driver_profile.html", {"profile": profile})
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def me(request):
-    """Return current user's info (role, username)."""
-    return Response({"username": request.user.username, "role": request.user.role})
+@login_required
+def delete_profile_picture(request):
+    if request.user.role != "driver":
+        return HttpResponseForbidden("Only drivers can modify a driver profile")
+    if request.method != "POST":
+        return redirect("driver_profile")
+    try:
+        profile = DriverProfile.objects.get(user=request.user)
+        if profile.profile_picture:
+            profile.profile_picture.delete(save=False)
+            profile.profile_picture = None
+            profile.save(update_fields=["profile_picture"])
+            messages.info(request, "Profile picture removed.")
+        else:
+            messages.info(request, "No profile picture to remove.")
+    except DriverProfile.DoesNotExist:
+        messages.error(request, "Profile not found.")
+    return redirect("driver_profile")
 
 
-# ================ DRIVER PROFILE ===============================
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.views import APIView
+# RIDE REQUEST
 
-class DriverProfileCreateView(APIView):
-    parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        if request.user.role != "driver":
-            return Response({"error": "Only drivers can create a profile"}, status=403)
-        serializer = DriverProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
-class DriverProfileDetailView(APIView):
-    parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        try:
-            profile = DriverProfile.objects.get(user=request.user)
-        except DriverProfile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=404)
-        serializer = DriverProfileSerializer(profile)
-        return Response(serializer.data)
-
-    def put(self, request):
-        try:
-            profile = DriverProfile.objects.get(user=request.user)
-        except DriverProfile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=404)
-        serializer = DriverProfileSerializer(profile, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request):
-        try:
-            profile = DriverProfile.objects.get(user=request.user)
-        except DriverProfile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=404)
-        profile.delete()
-        return Response({"message": "Profile deleted"}, status=204)
-
-
-# ================ RIDE REQUEST ================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_ride_request(request):
+@login_required
+def customer_dashboard(request):
     if request.user.role != "customer":
-        return Response({"error": "Only customers can create ride requests"}, status=403)
+        return redirect("driver_dashboard")
+    if request.method == "POST":
+        pickup = request.POST.get("pickup")
+        dropoff = request.POST.get("dropoff")
+        car = request.POST.get("carName")
+        RideRequest.objects.create(
+            customer=request.user,
+            pickup_location=pickup,
+            dropoff_location=dropoff,
+        )
+        messages.success(request, "Ride request created.")
+        return redirect("customer_dashboard")
+    rides = RideRequest.objects.filter(customer=request.user).order_by("-created_at")
+    customer_bookings = Booking.objects.filter(ride_request__customer=request.user).order_by("-confirmed_at")
 
-    serializer = RideRequestSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(customer=request.user)
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+    # Build nearby drivers list based on customer's last known location
+    nearby_list = []
+    lat0 = request.user.last_lat
+    lng0 = request.user.last_lng
+    drivers = DriverProfile.objects.select_related("user").all()
+    for d in drivers:
+        if d.current_lat is None or d.current_lng is None:
+            continue
+        dist = None
+        if lat0 is not None and lng0 is not None:
+            dist = calculate_distance(lat0, lng0, d.current_lat, d.current_lng)
+        nearby_list.append({
+            "user": d.user,
+            "vehicle_details": d.vehicle_details,
+            "distance_km": round(dist, 2) if dist is not None else None,
+        })
+
+    # Jodi distance thake tahole distance er upor vitti kore sort kore ar  10 km er vitore ja ase oigula filter kore"
+    if any(item["distance_km"] is not None for item in nearby_list):
+        filtered = [item for item in nearby_list if item["distance_km"] is not None and item["distance_km"] <= 10]
+        if not filtered:
+            filtered = [item for item in nearby_list if item["distance_km"] is not None]
+        filtered.sort(key=lambda x: x["distance_km"])
+        nearby_list = filtered[:10]
+    else:
+        # kono location nai
+        nearby_list = nearby_list[:10]
+
+    return render(request, "customer_dashboard.html", {
+        "rides": rides,
+        "nearby_drivers": nearby_list,
+        "customer_bookings": customer_bookings,
+    })
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_my_ride_requests(request):
-    rides = RideRequest.objects.filter(customer=request.user)
-    serializer = RideRequestSerializer(rides, many=True)
-    return Response(serializer.data)
+# BOOKING 
 
-
-# ================ BOOKING ======================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@login_required
 def create_booking(request, ride_request_id):
     if request.user.role != "driver":
-        return Response({"error": "Only drivers can accept bookings"}, status=403)
-
-    try:
-        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
-    except RideRequest.DoesNotExist:
-        return Response({"error": "Ride not found or already matched"}, status=404)
-
+        return HttpResponseForbidden("Only drivers can accept bookings")
+    ride = get_object_or_404(RideRequest, id=ride_request_id, status="pending")
     ride.status = "accepted"
     ride.save()
+    Booking.objects.create(ride_request=ride, driver=request.user)
+    messages.success(request, "Booking created.")
+    return redirect("driver_dashboard")
 
-    booking = Booking.objects.create(ride_request=ride, driver=request.user)
-    serializer = BookingSerializer(booking)
-    return Response(serializer.data, status=201)
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@login_required
 def list_my_bookings(request):
     if request.user.role == "driver":
         bookings = Booking.objects.filter(driver=request.user)
     else:
         bookings = Booking.objects.filter(ride_request__customer=request.user)
-    serializer = BookingSerializer(bookings, many=True)
-    return Response(serializer.data)
+    return render(request, "driver_dashboard.html", {"bookings": bookings})
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@login_required
 def update_booking_status(request, booking_id):
-    try:
-        booking = Booking.objects.get(id=booking_id, driver=request.user)
-    except Booking.DoesNotExist:
-        return Response({"error": "Booking not found or unauthorized"}, status=404)
+    booking = get_object_or_404(Booking, id=booking_id, driver=request.user)
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        if new_status in ["completed", "cancelled"]:
+            booking.status = new_status
+            booking.save()
+            booking.ride_request.status = ("completed" if new_status == "completed" else "cancelled")
+            booking.ride_request.save()
+            messages.success(request, f"Booking marked as {new_status}.")
+    return redirect("driver_dashboard")
 
-    new_status = request.data.get("status")
-    if new_status not in ["completed", "cancelled"]:
-        return Response({"error": "Invalid status"}, status=400)
+# CANCEL RIDE 
 
-    booking.status = new_status
-    booking.save()
-    booking.ride_request.status = "completed" if new_status == "completed" else "cancelled"
-    booking.ride_request.save()
-
-    return Response({"message": f"Booking marked as {new_status}"}, status=200)
-
-
-# ================ CANCEL BOOKING (CUSTOMER SIDE) ===============
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def cancel_booking(request, booking_id):
-    """Allow customers to cancel a ride they booked"""
-    user = request.user
-    try:
-        booking = Booking.objects.get(id=booking_id)
-    except Booking.DoesNotExist:
-        return Response({"error": "Booking not found"}, status=404)
-
-    # customer cancel korbe
-    if booking.ride_request.customer != user:
-        return Response({"error": "Not authorized to cancel this ride"}, status=403)
-
-    
-    if booking.status in ["completed", "cancelled"]:
-        return Response({"error": f"Cannot cancel a {booking.status} ride"}, status=400)
-
-    booking.status = "cancelled"
-    booking.save()
-    ride = booking.ride_request
-    ride.status = "cancelled"
-    ride.save()
-
-    return Response({"message": "Ride cancelled successfully"}, status=200)
-
-
-# ================ CANCEL RIDE =================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@login_required
 def cancel_ride_request(request, ride_request_id):
+    ride = get_object_or_404(RideRequest, id=ride_request_id)
+
+    #ride je create koreche(customer) ba je driver ke assign kora hoyeche shei driver cancel korte parbe."
+    is_customer = request.user == ride.customer
+    is_assigned_driver = False
     try:
-        ride = RideRequest.objects.get(id=ride_request_id, customer=request.user, status="pending")
-    except RideRequest.DoesNotExist:
-        return Response({"error": "Ride not found or cannot be cancelled"}, status=404)
-
-    ride.status = "cancelled"
-    ride.save()
-    return Response({"message": "Ride cancelled successfully"}, status=200)
-
-
-# ================ AVAILABLE RIDES ==============================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_available_rides(request):
-    if request.user.role != "driver":
-        return Response({"error": "Only drivers can view rides"}, status=403)
-    rides = RideRequest.objects.filter(status="pending")
-    serializer = RideRequestSerializer(rides, many=True)
-    return Response(serializer.data)
-
-
-# ================ DRIVER REVIEW ================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_review(request, booking_id):
-    try:
-        booking = Booking.objects.get(id=booking_id)
+        booking = ride.booking
+        is_assigned_driver = request.user.role == "driver" and booking.driver_id == request.user.id
     except Booking.DoesNotExist:
-        return Response({"error": "Booking not found"}, status=404)
+        booking = None
 
-    # Only customers can review their completed ride
-    if request.user.role != "customer":
-        return Response({"error": "Only customers can submit reviews"}, status=403)
+    if not (is_customer or is_assigned_driver):
+        return HttpResponseForbidden("You are not allowed to cancel this ride")
 
-    if booking.ride_request.customer != request.user:  # ✅ fixed line
-        return Response({"error": "You are not the owner of this booking"}, status=403)
+    # Do not alter finalized rides
+    if ride.status in ["completed", "cancelled"]:
+        messages.info(request, "This ride is already finalized.")
+        return redirect("driver_dashboard" if request.user.role == "driver" else "customer_dashboard")
 
-    if booking.status != "completed":
-        return Response({"error": "You can only review completed rides"}, status=400)
+    # Cancel linked booking if present and not finalized
+    if booking and booking.status not in ["completed", "cancelled"]:
+        booking.status = "cancelled"
+        booking.save(update_fields=["status"])
 
-    if DriverReview.objects.filter(booking=booking).exists():
-        return Response({"error": "You already reviewed this booking"}, status=400)
+    # Mark ride cancelled
+    ride.status = "cancelled"
+    ride.save(update_fields=["status"])
 
-    if not booking.driver:
-        return Response({"error": "No driver assigned to this booking"}, status=400)
-
-    try:
-        rating = int(request.data.get("rating", 0))
-    except (TypeError, ValueError):
-        return Response({"error": "Invalid rating value"}, status=400)
-
-    feedback = (request.data.get("feedback") or "").strip()
-
-    DriverReview.objects.create(
-        booking=booking,
-        driver=booking.driver,
-        customer=request.user,
-        rating=rating,
-        feedback=feedback,
-    )
-
-    return Response({"message": "Review submitted successfully!"}, status=201)
-
-@api_view(["GET"])
-def list_driver_reviews(request, driver_id):
-    reviews = DriverReview.objects.filter(driver_id=driver_id).order_by("-created_at")
-    serializer = DriverReviewSerializer(reviews, many=True)
-    return Response(serializer.data)
+    messages.success(request, "Ride cancelled.")
+    return redirect("driver_dashboard" if request.user.role == "driver" else "customer_dashboard")
 
 
-# ================ LEADERBOARD =================================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def suggest_drivers(request, ride_request_id):
-    try:
-        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
-    except RideRequest.DoesNotExist:
-        return Response({"error": "Ride not found"}, status=404)
-
-    if not ride.pickup_lat or not ride.pickup_lng:
-        return Response({"error": "Ride missing coordinates"}, status=400)
-
-    drivers = DriverProfile.objects.all()
-    driver_distances = []
-
-    for d in drivers:
-        if d.current_lat and d.current_lng:
-            distance = calculate_distance(ride.pickup_lat, ride.pickup_lng, d.current_lat, d.current_lng)
-            driver_distances.append({
-                "driver_id": d.user.id,
-                "username": d.user.username,
-                "vehicle": d.vehicle_details,
-                "distance_km": round(distance, 2),
-            })
-
-    driver_distances.sort(key=lambda x: x["distance_km"])
-    return Response(driver_distances[:5])
-
-
-
-
-
-from django.db.models import Count, Avg, Q
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def driver_leaderboard(request):
-    try:
-        drivers = (
-            Account.objects.filter(role="driver")
-            .annotate(
-                total_completed=Count(
-                    "bookings",                                
-                    filter=Q(bookings__status="completed")     
-                ),
-                avg_rating=Avg("driver_reviews__rating")        
-            )
-            .order_by("-total_completed", "-avg_rating")[:10]
-        )
-
-        leaderboard = [
-            {
-                "username": d.username,
-                "total_completed": d.total_completed or 0,
-                "avg_rating": round(d.avg_rating or 0, 2),
-            }
-            for d in drivers
-        ]
-        return Response(leaderboard, status=200)
-    except Exception as e:
-        print("🚨 Leaderboard Error:", e)
-        return Response({"error": str(e)}, status=500)
-    
-
-# ================ EMERGENCY SYSTEM =============================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def set_emergency_contact(request):
-    serializer = EmergencyContactSerializer(data=request.data)
-    if serializer.is_valid():
-        contact, _ = EmergencyContact.objects.update_or_create(
-            user=request.user, defaults={"phone_number": serializer.validated_data["phone_number"]}
-        )
-        return Response({"message": "Emergency contact saved", "phone_number": contact.phone_number})
-    return Response(serializer.errors, status=400)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_emergency_contact(request):
-    try:
-        contact = request.user.emergency_contact
-        serializer = EmergencyContactSerializer(contact)
-        return Response(serializer.data)
-    except EmergencyContact.DoesNotExist:
-        return Response({"error": "No emergency contact set"}, status=404)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def trigger_alert(request):
-    try:
-        contact = request.user.emergency_contact
-        alert = EmergencyAlert.objects.create(user=request.user, contact=contact, status="sent")
-        return Response({
-            "message": f"🚨 Alert triggered to {contact.phone_number}",
-            "alert_id": alert.id,
-            "triggered_at": alert.triggered_at,
-        })
-    except EmergencyContact.DoesNotExist:
-        return Response({"error": "No emergency contact set"}, status=404)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_alerts(request):
-    alerts = EmergencyAlert.objects.filter(user=request.user).order_by("-triggered_at")
-    return Response([
-        {"contact": a.contact.phone_number, "status": a.status, "triggered_at": a.triggered_at}
-        for a in alerts
-    ])
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def me(request):
-    """Return current user's info (role, username, id)."""
-    return Response({
-        "id": request.user.id,          # <-- add this line
-        "username": request.user.username,
-        "role": request.user.role
-    })
-
-
-# ================ GEOLOCATION: NEARBY SEARCH ====================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def nearby_drivers(request):
-    """Show nearby drivers for a customer based on their current location"""
-    if request.user.role != "customer":
-        return Response({"error": "Only customers can view nearby drivers"}, status=403)
-
-    try:
-        lat = float(request.query_params.get("lat"))
-        lng = float(request.query_params.get("lng"))
-    except (TypeError, ValueError):
-        return Response({"error": "Invalid or missing coordinates"}, status=400)
-
-    nearby = []
-    for d in DriverProfile.objects.filter(user__role="driver"):
-        if d.current_lat and d.current_lng:
-            dist = calculate_distance(lat, lng, d.current_lat, d.current_lng)
-            nearby.append({
-                "driver_id": d.user.id,
-                "username": d.user.username,
-                "vehicle": d.vehicle_details,
-                "distance_km": round(dist, 2),
-            })
-    nearby.sort(key=lambda x: x["distance_km"])
-    return Response(nearby[:10])  # always return 10 closest drivers
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def nearby_rides(request):
-    """Show nearby ride requests for a driver"""
-    if request.user.role != "driver":
-        return Response({"error": "Only drivers can view nearby rides"}, status=403)
-
-    try:
-        lat = float(request.query_params.get("lat"))
-        lng = float(request.query_params.get("lng"))
-    except (TypeError, ValueError):
-        return Response({"error": "Invalid or missing coordinates"}, status=400)
-
-    nearby = []
-    for ride in RideRequest.objects.filter(status="pending"):
-        if ride.pickup_lat and ride.pickup_lng:
-            dist = calculate_distance(lat, lng, ride.pickup_lat, ride.pickup_lng)
-            if dist <= 5:
-                nearby.append({
-                    "ride_id": ride.id,
-                    "customer": ride.customer.username,
-                    "pickup_location": ride.pickup_location,
-                    "distance_km": round(dist, 2),
-                })
-    nearby.sort(key=lambda x: x["distance_km"])
-    return Response(nearby[:10])
+@login_required
+def edit_ride_request(request, ride_request_id):
+    """Allow a customer to edit their own pending ride's pickup/dropoff."""
+    ride = get_object_or_404(RideRequest, id=ride_request_id, customer=request.user)
+    if ride.status != "pending":
+        messages.info(request, "Only pending rides can be edited.")
+        return redirect("customer_dashboard")
+    if request.method == "POST":
+        pickup = (request.POST.get("pickup") or "").strip()
+        dropoff = (request.POST.get("dropoff") or "").strip()
+        if not pickup or not dropoff:
+            messages.error(request, "Both pickup and dropoff are required.")
+            return redirect("edit_ride_request", ride_request_id=ride.id)
+        ride.pickup_location = pickup
+        ride.dropoff_location = dropoff
+        ride.save(update_fields=["pickup_location", "dropoff_location"])
+        messages.success(request, "Ride updated.")
+        return redirect("customer_dashboard")
+    return render(request, "ride_edit.html", {"ride": ride})
