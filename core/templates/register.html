@@ -1,5 +1,6 @@
+
+
 {% extends "base.html" %}
-{% load static %}
 {% block title %}Register - Rent a Driver{% endblock %}
 
 {% block content %}
@@ -7,15 +8,16 @@
   <div class="form-container">
     <h2>Create an Account</h2>
 
-    <form id="registerForm">
+    <form method="post" action="{% url 'register' %}">
+      {% csrf_token %}
       <label>Username</label>
-      <input type="text" id="username" placeholder="Enter username" required />
+      <input type="text" name="username" placeholder="Enter username" required />
 
       <label>Password</label>
-      <input type="password" id="password" placeholder="Enter password" required />
+      <input type="password" name="password" placeholder="Enter password" required />
 
       <label>Role</label>
-      <select id="role" required>
+      <select name="role" required>
         <option value="">-- Select Role --</option>
         <option value="customer">Customer</option>
         <option value="driver">Driver</option>
@@ -25,14 +27,14 @@
     </form>
 
     <p class="redirect-text">
-      Already have an account? <a href="/login/">Login here</a>.
+      Already have an account? <a href="{% url 'login' %}">Login here</a>.
     </p>
 
-    <p id="registerMsg" class="msg"></p>
+    {% if messages %}
+      <ul class="msg">
+        {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
   </div>
 </section>
-{% endblock %}
-
-{% block extra_scripts %}
-  <script src="{% static 'js/auth.js' %}"></script>
 {% endblock %}
