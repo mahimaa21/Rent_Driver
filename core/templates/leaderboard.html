@@ -1,3 +1,5 @@
+
+
 {% extends "base.html" %}
 {% block title %}Leaderboard - Rent a Driver{% endblock %}
 
@@ -29,11 +31,11 @@
           </svg>
         </div>
         <div class="stat-content">
-          <div class="stat-number" id="totalDrivers">0</div>
+          <div class="stat-number" id="totalDrivers">{{ total_drivers|default:0 }}</div>
           <div class="stat-label">Total Drivers</div>
         </div>
       </div>
-      
+     
       <div class="stat-card">
         <div class="stat-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -41,11 +43,11 @@
           </svg>
         </div>
         <div class="stat-content">
-          <div class="stat-number" id="avgRating">0.0</div>
+          <div class="stat-number" id="avgRating">{{ avg_rating|default:"0.0" }}</div>
           <div class="stat-label">Average Rating</div>
         </div>
       </div>
-      
+     
       <div class="stat-card">
         <div class="stat-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -55,7 +57,7 @@
           </svg>
         </div>
         <div class="stat-content">
-          <div class="stat-number" id="totalRides">0</div>
+          <div class="stat-number" id="totalRides">{{ total_rides|default:0 }}</div>
           <div class="stat-label">Total Rides</div>
         </div>
       </div>
@@ -76,15 +78,19 @@
         </h3>
         <p class="card-subtitle">Ranked by performance, ratings, and completed rides</p>
       </div>
-      
+     
       <div class="leaderboard-container">
-        <ul id="leaderboardList" class="leaderboard-list">
-          <li class="loading-item">
-            <div class="loading-spinner"></div>
-            <span>Loading leaderboard...</span>
-          </li>
+        <ul class="leaderboard-list">
+          {% for d in leaderboard %}
+            <li>
+              <span>🏅 <strong>{{ forloop.counter }}. {{ d.username }}</strong></span>
+              <span>{{ d.total_completed }} rides | ⭐ {{ d.avg_rating }}</span>
+            </li>
+          {% empty %}
+            <li>No drivers found.</li>
+          {% endfor %}
         </ul>
-        
+       
         <div class="empty-leaderboard" id="emptyLeaderboard" style="display: none;">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
@@ -98,7 +104,7 @@
           <p>The leaderboard will appear when drivers start completing rides</p>
         </div>
       </div>
-      
+     
       <div id="leaderboardMsg" class="msg"></div>
     </div>
   </div>
@@ -113,47 +119,4 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
-
-<script>
-document.addEventListener("DOMContentLoaded", async () => {
-  const token = localStorage.getItem("access");
-  const list = document.getElementById("leaderboardList");
-  const msg = document.getElementById("leaderboardMsg");
-
-  if (!token) {
-    msg.textContent = "Please log in to view the leaderboard.";
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/leaderboard/drivers/", {
-      headers: { Authorization: Bearer ${token} },
-    });
-
-    if (!res.ok) {
-      msg.textContent = "Error loading leaderboard.";
-      return;
-    }
-
-    const data = await res.json();
-    list.innerHTML = "";
-
-    if (data.length === 0) {
-      list.innerHTML = "<li>No drivers found.</li>";
-      return;
-    }
-
-    data.forEach((d, i) => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <span>🏅 <strong>${i + 1}. ${d.username}</strong></span>
-        <span>${d.total_completed} rides | ⭐ ${d.avg_rating}</span>
-      `;
-      list.appendChild(li);
-    });
-  } catch (err) {
-    msg.textContent = "Something went wrong.";
-  }
-});
-</script>
-{% endblock %}
+{% endblock %}
