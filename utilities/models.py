@@ -3,7 +3,7 @@ from django.conf import settings
 
 
 class Note(models.Model):
-	# Owner of the note; nullable for legacy rows created before ownership was added
+	
 	user = models.ForeignKey(
 		settings.AUTH_USER_MODEL,
 		on_delete=models.CASCADE,
