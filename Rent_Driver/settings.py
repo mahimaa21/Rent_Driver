@@ -39,7 +39,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "rentadriver.urls"
+ROOT_URLCONF = "Rent_Driver.urls"
 
 TEMPLATES = [
     {
@@ -58,7 +58,7 @@ TEMPLATES = [
 
 
 
-WSGI_APPLICATION = "rentadriver.wsgi.application"
+WSGI_APPLICATION = "Rent_Driver.wsgi.application"
 
 
 # ---------- Database ----------
