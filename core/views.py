@@ -697,6 +697,7 @@ def driver_dashboard(request):
     except DriverProfile.DoesNotExist:
         messages.info(request, "Please complete your driver profile before accessing the dashboard.")
         return redirect("driver_profile")
+
     bookings = Booking.objects.filter(driver=request.user).order_by("-confirmed_at")
     total_completed = bookings.filter(status="completed").count()
     total_ongoing = bookings.filter(status="ongoing").count()
@@ -706,10 +707,7 @@ def driver_dashboard(request):
         .order_by("-created_at")[:20]
     )
     reviews = DriverReview.objects.filter(driver=request.user).order_by("-created_at")
-    avg_rating = reviews.aggregate(avg=Avg("rating"))[["avg"]] if False else reviews.aggregate(avg=Avg("rating"))["avg"]  # keep simple value
-    # Simple earnings model: flat per-ride earning (optional). Default to 0 if not configured
-    per_ride = getattr(settings, "PER_RIDE_EARNING", 0)
-    earnings_amount = total_completed * per_ride
+    avg_rating = reviews.aggregate(avg=Avg("rating"))["avg"]
 
     return render(request, "driver_dashboard.html", {
         "bookings": bookings,
@@ -718,8 +716,4 @@ def driver_dashboard(request):
         "avg_rating": round(avg_rating or 0, 2) if avg_rating else None,
         "total_completed": total_completed,
         "total_ongoing": total_ongoing,
-        "earnings_rides": total_completed,
-        "earnings_amount": earnings_amount,
     })
-
-
