@@ -322,3 +322,160 @@ def edit_ride_request(request, ride_request_id):
         messages.success(request, "Ride updated.")
         return redirect("customer_dashboard")
     return render(request, "ride_edit.html", {"ride": ride})
+
+
+# ===============================================================
+# ================ DRIVER REVIEW ================================
+# ===============================================================
+
+@login_required
+def create_review(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+    if request.method == "POST" and request.user.role == "customer" and booking.ride_request.customer == request.user and booking.status == "completed" and not DriverReview.objects.filter(booking=booking).exists():
+        rating = int(request.POST.get("rating", 0))
+        feedback = (request.POST.get("feedback") or "").strip()
+        image_file = request.FILES.get("image")
+        DriverReview.objects.create(
+            booking=booking,
+            driver=booking.driver,
+            customer=request.user,
+            rating=rating,
+            feedback=feedback,
+            image=image_file if image_file else None,
+        )
+        messages.success(request, "Review submitted.")
+    return redirect("customer_dashboard")
+
+
+@login_required
+def delete_review(request, review_id):
+    review = get_object_or_404(DriverReview, id=review_id)
+    if request.user != review.customer:
+        return HttpResponseForbidden("You can only delete your own review")
+    if request.method == "POST":
+        review.delete()
+        messages.info(request, "Review deleted.")
+    return redirect("customer_dashboard")
+
+
+def list_driver_reviews(request, driver_id):
+    reviews = DriverReview.objects.filter(driver_id=driver_id).order_by("-created_at")
+    return render(request, "driver_dashboard.html", {"driver_reviews": reviews})
+
+
+# ===============================================================
+# ================ SUGGEST DRIVERS ===============================
+# ===============================================================
+
+@login_required
+def suggest_drivers(request, ride_request_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_request_id, status="pending")
+    except RideRequest.DoesNotExist:
+        messages.error(request, "Ride not found.")
+        return redirect("customer_dashboard")
+
+    if not ride.pickup_lat or not ride.pickup_lng:
+        messages.error(request, "Ride missing coordinates.")
+        return redirect("customer_dashboard")
+
+    drivers = DriverProfile.objects.all()
+    driver_distances = []
+    for d in drivers:
+        if d.current_lat and d.current_lng:
+            distance = calculate_distance(ride.pickup_lat, ride.pickup_lng, d.current_lat, d.current_lng)
+            driver_distances.append({
+                "driver_id": d.user.id,
+                "username": d.user.username,
+                "vehicle": d.vehicle_details,
+                "distance_km": round(distance, 2),
+            })
+    driver_distances.sort(key=lambda x: x["distance_km"])
+    request.session["suggested_drivers"] = driver_distances[:5]
+    return redirect("customer_dashboard")
+
+
+# ===============================================================
+# ================ NEARBY SYSTEM ================================
+# ===============================================================
+
+def nearby_drivers(request):
+    """Public endpoint — show up to 10 nearby drivers (within 10 km)."""
+    lat = request.GET.get("lat")
+    lng = request.GET.get("lng")
+
+    drivers = DriverProfile.objects.select_related("user").all()
+    results = []
+
+    for d in drivers:
+        if d.current_lat and d.current_lng:
+            if lat and lng:
+                distance = calculate_distance(float(lat), float(lng), d.current_lat, d.current_lng)
+                if distance > 10:
+                    continue
+                distance_str = round(distance, 2)
+            else:
+                distance_str = "N/A"
+            results.append({
+                "username": d.user.username,
+                "vehicle": d.vehicle_details,
+                "distance_km": distance_str,
+            })
+
+    results = sorted(results, key=lambda x: x["distance_km"] if isinstance(x["distance_km"], (int, float)) else 9999)
+    context = {"nearby": results[:10]}
+    return render(request, "customer_dashboard.html", context)
+
+
+@login_required
+def nearby_rides(request):
+    """Authenticated endpoint — returns pending rides within 10 km of driver."""
+    user = request.user
+    if user.role != "driver":
+        return HttpResponseForbidden("Only drivers can view rides")
+
+    try:
+        driver = DriverProfile.objects.get(user=user)
+    except DriverProfile.DoesNotExist:
+        messages.error(request, "Driver profile not found.")
+        return redirect("driver_profile")
+
+    if not driver.current_lat or not driver.current_lng:
+        messages.error(request, "Driver location not set.")
+        return redirect("driver_profile")
+
+    rides = RideRequest.objects.filter(status="pending")
+    nearby = []
+
+    for r in rides:
+        if not r.pickup_lat or not r.pickup_lng:
+            continue
+        distance = calculate_distance(driver.current_lat, driver.current_lng, r.pickup_lat, r.pickup_lng)
+        if distance <= 10:
+            nearby.append({
+                "id": r.id,
+                "pickup_location": r.pickup_location,
+                "dropoff_location": r.dropoff_location,
+                "distance_km": round(distance, 2),
+            })
+    nearby = sorted(nearby, key=lambda x: x["distance_km"])
+    request.session["nearby_rides"] = nearby[:10]
+    return redirect("driver_dashboard")
+
+
+@login_required
+def list_available_rides(request):
+    """Show only unbooked pending rides to drivers."""
+    if request.user.role != "driver":
+        return HttpResponseForbidden("Only drivers can view available rides")
+
+    # ✅ Exclude rides that already have a booking
+    rides = (
+        RideRequest.objects.filter(status="pending")
+        .exclude(booking__isnull=False)
+        .order_by("-created_at")
+    )
+    return render(request, "driver_dashboard.html", {"available_rides": rides})
+
+
+
