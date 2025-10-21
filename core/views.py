@@ -477,5 +477,249 @@ def list_available_rides(request):
     )
     return render(request, "driver_dashboard.html", {"available_rides": rides})
 
+# ===============================================================
+# ================ LEADERBOARD =================================
+# ===============================================================
+
+@login_required
+def driver_leaderboard(request):
+    drivers = (
+        Account.objects.filter(role="driver")
+        .annotate(
+            total_completed=Count("bookings", filter=Q(bookings__status="completed")),
+            avg_rating=Avg("driver_reviews__rating")
+        )
+        .order_by("-total_completed", "-avg_rating")[:10]
+    )
+    leaderboard = [
+        {
+            "username": d.username,
+            "total_completed": d.total_completed or 0,
+            "avg_rating": round(d.avg_rating or 0, 2),
+        }
+        for d in drivers
+    ]
+    total_drivers = Account.objects.filter(role="driver").count()
+    total_rides = Booking.objects.filter(status="completed").count()
+    avg_rating_overall = DriverReview.objects.aggregate(avg=Avg("rating"))[["avg"]] if False else DriverReview.objects.aggregate(avg=Avg("rating"))["avg"]
+    context = {
+        "leaderboard": leaderboard,
+        "total_drivers": total_drivers,
+        "total_rides": total_rides,
+        "avg_rating": round(avg_rating_overall or 0, 2) if avg_rating_overall else 0.0,
+    }
+    return render(request, "leaderboard.html", context)
+
+
+def driver_leaderboard_view(request):
+    # wrapper to allow GET render without requiring auth for display
+    drivers = (
+        Account.objects.filter(role="driver")
+        .annotate(
+            total_completed=Count("bookings", filter=Q(bookings__status="completed")),
+            avg_rating=Avg("driver_reviews__rating")
+        )
+        .order_by("-total_completed", "-avg_rating")[:10]
+    )
+    leaderboard = [
+        {
+            "username": d.username,
+            "total_completed": d.total_completed or 0,
+            "avg_rating": round(d.avg_rating or 0, 2),
+        }
+        for d in drivers
+    ]
+    total_drivers = Account.objects.filter(role="driver").count()
+    total_rides = Booking.objects.filter(status="completed").count()
+    avg_rating_overall = DriverReview.objects.aggregate(avg=Avg("rating"))[["avg"]] if False else DriverReview.objects.aggregate(avg=Avg("rating"))["avg"]
+    context = {
+        "leaderboard": leaderboard,
+        "total_drivers": total_drivers,
+        "total_rides": total_rides,
+        "avg_rating": round(avg_rating_overall or 0, 2) if avg_rating_overall else 0.0,
+    }
+    return render(request, "leaderboard.html", context)
+
+
+# ===============================================================
+# ================ BOOKING CHAT ================================
+# ===============================================================
+
+@login_required
+def chat_room(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+    user = request.user
+    # Guard: allow only booking's customer or assigned driver
+    if booking.ride_request.customer != user and booking.driver != user:
+        return HttpResponseForbidden("You are not allowed to view this chat.")
+    # Hide chat if booking completed or cancelled
+    if booking.status in ["completed", "cancelled"]:
+        messages.info(request, "Chat is unavailable for finalized rides.")
+        return redirect("driver_dashboard" if user.role == "driver" else "customer_dashboard")
+
+    if request.method == "POST":
+        text = (request.POST.get("text") or "").strip()
+        if text:
+            ChatMessage.objects.create(booking=booking, sender=user, text=text)
+            return redirect("chat_room", booking_id=booking.id)
+        else:
+            messages.error(request, "Message cannot be empty.")
+
+    messages_list = booking.messages.select_related("sender").all()
+    return render(request, "chat_room.html", {
+        "booking": booking,
+        "messages_list": messages_list,
+        "is_driver": booking.driver == user,
+        "is_customer": booking.ride_request.customer == user,
+    })
+
+
+# ===============================================================
+# ================ EMERGENCY SYSTEM =============================
+# ===============================================================
+
+@login_required
+def emergency_view(request):
+    # Show current contact and recent alert history in one page
+    contact = None
+    try:
+        contact = request.user.emergency_contact
+    except EmergencyContact.DoesNotExist:
+        contact = None
+
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by("-triggered_at")[:20]
+    return render(request, "emergency.html", {"contact": contact, "alerts": alerts})
+
+
+@login_required
+def set_emergency_contact(request):
+    if request.method == "POST":
+        phone = request.POST.get("phone_number")
+        if phone:
+            contact, _ = EmergencyContact.objects.update_or_create(
+                user=request.user, defaults={"phone_number": phone}
+            )
+            messages.success(request, "Emergency contact saved.")
+    return redirect("emergency")
+
+
+@login_required
+def get_emergency_contact(request):
+    try:
+        contact = request.user.emergency_contact
+    except EmergencyContact.DoesNotExist:
+        contact = None
+    return render(request, "emergency.html", {"contact": contact})
+
+
+@login_required
+def trigger_alert(request):
+    try:
+        contact = request.user.emergency_contact
+        EmergencyAlert.objects.create(user=request.user, contact=contact, status="sent")
+        messages.success(request, f"Emergency alert sent to {contact.phone_number}.")
+    except EmergencyContact.DoesNotExist:
+        messages.error(request, "No emergency contact set.")
+    return redirect("emergency")
+
+
+@login_required
+def list_alerts(request):
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by("-triggered_at")
+    return render(request, "emergency.html", {"alerts": alerts})
+
+
+@login_required
+def delete_emergency_contact(request):
+    if request.method != "POST":
+        return redirect("emergency")
+    try:
+        contact = request.user.emergency_contact
+        phone = contact.phone_number
+        contact.delete()
+        messages.info(request, f"Emergency contact {phone} deleted.")
+    except EmergencyContact.DoesNotExist:
+        messages.warning(request, "No emergency contact to delete.")
+    return redirect("emergency")
+
+
+# ===============================================================
+# ================ LOCATION UPDATES =============================
+# ===============================================================
+
+def update_location(request):
+    """Save the user's latest latitude and longitude."""
+    lat = request.POST.get("lat") or request.GET.get("lat")
+    lng = request.POST.get("lng") or request.GET.get("lng")
+    next_url = request.POST.get("next") or request.GET.get("next") or request.META.get("HTTP_REFERER")
+
+    if not lat or not lng:
+        messages.error(request, "Missing coordinates.")
+        return redirect(next_url or "home")
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+        if request.user.is_authenticated:
+            # ✅ Always update Account fields
+            request.user.last_lat = lat
+            request.user.last_lng = lng
+            request.user.save(update_fields=["last_lat", "last_lng"])
+
+            # ✅ If driver, also update DriverProfile
+            if request.user.role == "driver":
+                driver_profile, _ = DriverProfile.objects.get_or_create(user=request.user)
+                driver_profile.current_lat = lat
+                driver_profile.current_lng = lng
+                driver_profile.save(update_fields=["current_lat", "current_lng"])
+
+            msg = "Authenticated user location updated"
+        else:
+            msg = "Anonymous location received (not saved)"
+
+        messages.info(request, msg)
+        return redirect(next_url or "home")
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect(next_url or "home")
+
+
+@login_required
+def driver_dashboard(request):
+    if request.user.role != "driver":
+        return redirect("customer_dashboard")
+    # Ensure driver has completed required profile fields
+    try:
+        profile = DriverProfile.objects.get(user=request.user)
+        if not profile.nid_number or not profile.license_number:
+            messages.info(request, "Please complete your driver profile before accessing the dashboard.")
+            return redirect("driver_profile")
+    except DriverProfile.DoesNotExist:
+        messages.info(request, "Please complete your driver profile before accessing the dashboard.")
+        return redirect("driver_profile")
+    bookings = Booking.objects.filter(driver=request.user).order_by("-confirmed_at")
+    total_completed = bookings.filter(status="completed").count()
+    total_ongoing = bookings.filter(status="ongoing").count()
+    available = (
+        RideRequest.objects.filter(status="pending")
+        .exclude(booking__isnull=False)
+        .order_by("-created_at")[:20]
+    )
+    reviews = DriverReview.objects.filter(driver=request.user).order_by("-created_at")
+    avg_rating = reviews.aggregate(avg=Avg("rating"))[["avg"]] if False else reviews.aggregate(avg=Avg("rating"))["avg"]  # keep simple value
+    # Simple earnings model: flat per-ride earning (optional). Default to 0 if not configured
+    per_ride = getattr(settings, "PER_RIDE_EARNING", 0)
+    earnings_amount = total_completed * per_ride
+
+    return render(request, "driver_dashboard.html", {
+        "bookings": bookings,
+        "available_rides": available,
+        "reviews": reviews,
+        "avg_rating": round(avg_rating or 0, 2) if avg_rating else None,
+        "total_completed": total_completed,
+        "total_ongoing": total_ongoing,
+        "earnings_rides": total_completed,
+        "earnings_amount": earnings_amount,
+    })
 
 
