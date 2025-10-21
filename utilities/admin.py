@@ -1,8 +1,8 @@
 from django.contrib import admin
-from .models import SystemLog
+from .models import Note
 
-@admin.register(SystemLog)
-class SystemLogAdmin(admin.ModelAdmin):
-    list_display = ("action", "level", "user", "timestamp")
-    list_filter = ("level", "timestamp")
-    search_fields = ("action", "user__username")
+
+@admin.register(Note)
+class NoteAdmin(admin.ModelAdmin):
+	list_display = ("title", "user", "updated_at")
+	search_fields = ("title", "user__username")

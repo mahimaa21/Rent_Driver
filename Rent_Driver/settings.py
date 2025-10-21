@@ -21,25 +21,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Third-party
-    "rest_framework",
-    "rest_framework_simplejwt",  # JWT
-    "corsheaders",               # For frontend integration (React/Flutter etc.)
+    # Third-party (removed DRF/JWT/CORS for simplification)
 
     # Local
     "core",
-    "emergency",
+     "emergency",
     "utilities",
-    "chat",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-
-    # Enable CORS
-    "corsheaders.middleware.CorsMiddleware",
-
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -107,22 +99,4 @@ MEDIA_ROOT = BASE_DIR / "media"
 AUTH_USER_MODEL = "core.Account"
 
 
-# ---------- REST Framework & JWT ----------
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
-}
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),   # 1 hour
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),      # 7 days
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
-
-
-# ---------- CORS (for frontend apps like React/Flutter) ----------
-CORS_ALLOW_ALL_ORIGINS = True   # ⚠️ allow all during dev
+# Session-based auth only; DRF/JWT removed for a simpler project
